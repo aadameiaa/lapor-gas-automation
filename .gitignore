@@ -74,3 +74,7 @@ out-tsc/
 
 # Windows system files
 Thumbs.db
+
+# Secrets files
+.env
+src/data
