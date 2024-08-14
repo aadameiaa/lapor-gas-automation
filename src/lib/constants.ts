@@ -7,5 +7,7 @@ export const VERIFICATION_NATIONALITY_ID_URL =
 
 export const LOGIN_ENDPOINT =
 	'https://api-map.my-pertamina.id/general/v1/users/login'
+export const VERIFY_NATIONALITY_ID_ENDPOINT =
+	'https://api-map.my-pertamina.id/customers/v1/verify-nik'
 
 export const USER_DATA_LOCAL_STORAGE_KEY = 'maplite_user_data'

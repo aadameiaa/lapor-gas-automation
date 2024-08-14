@@ -1,17 +1,22 @@
 import { Cookie } from 'puppeteer'
 
-import { Auth, LoginData, LoginResponse } from '@/lib/types'
+import {
+	LoginData,
+	LoginResponse,
+	VerifyNationalityIdResponse,
+} from '@/lib/responses'
+import { Auth, Customer } from '@/lib/types'
 
-export function authDTO(response: LoginResponse, cookies: Cookie[]): Auth {
+export function authDTO({ data }: LoginResponse, cookies: Cookie[]): Auth {
 	return {
 		cookies,
-		accessToken: response.data.accessToken,
+		accessToken: data.accessToken,
 		settings: {
-			isLogin: response.data.isLogin,
-			merchantType: response.data.myptmMerchantType,
-			isDefaultPin: response.data.isDefaultPin,
-			isNewUser: response.data.isNewUserMyptm,
-			isSubsidyProduct: response.data.isSubsidiProduct,
+			isLogin: data.isLogin,
+			merchantType: data.myptmMerchantType,
+			isDefaultPin: data.isDefaultPin,
+			isNewUser: data.isNewUserMyptm,
+			isSubsidyProduct: data.isSubsidiProduct,
 		},
 	}
 }
@@ -24,5 +29,26 @@ export function revertAuthDTO(auth: Auth): LoginData {
 		isDefaultPin: auth.settings.isDefaultPin,
 		isNewUserMyptm: auth.settings.isNewUser,
 		isSubsidiProduct: auth.settings.isSubsidyProduct,
+	}
+}
+
+export function customerDTO({ data }: VerifyNationalityIdResponse): Customer {
+	return {
+		person: {
+			nationalityId: data.nationalityId,
+			familyId: data.familyId,
+			name: data.name,
+			email: data.email,
+			phoneNumber: data.phoneNumber,
+		},
+		quotaRemaining: data.quotaRemaining,
+		quotaRemainingLastMonth: data.quotaRemainingLastMonth,
+		customerTypes: data.customerTypes,
+		channelInject: data.channelInject,
+		flags: {
+			isAgreedTermsConditions: data.isAgreedTermsConditions,
+			isCompleted: data.isCompleted,
+			isSubsidy: data.isSubsidi,
+		},
 	}
 }

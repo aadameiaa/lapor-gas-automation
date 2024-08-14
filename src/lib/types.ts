@@ -1,8 +1,6 @@
 import { Cookie } from 'puppeteer'
 
-export type AccessToken = string
-
-export type AuthSettings = {
+type AuthSettings = {
 	isLogin: boolean
 	merchantType: string
 	isDefaultPin: boolean
@@ -12,29 +10,55 @@ export type AuthSettings = {
 
 export type Auth = {
 	cookies: Cookie[]
-	accessToken: AccessToken
+	accessToken: string
 	settings: AuthSettings
 }
 
-export type SuccessResponse<T> = {
-	success: boolean
-	data: T
-	message: string
-	code: number
+type Person = {
+	nationalityId: string
+	familyId: string
+	name: string
+	email: string
+	phoneNumber: string
 }
 
-export type ErrorResponse = {
-	code: number
-	message: string
+type QuotaRemaining = {
+	type: number
+	parent: number
+	retailer: number
 }
 
-export type LoginData = {
-	accessToken: string
-	isLogin: boolean
-	myptmMerchantType: string
-	isDefaultPin: boolean
-	isNewUserMyptm: boolean
-	isSubsidiProduct: boolean
+type QuotaRemainingLastMonth = {
+	type: number
+	parent: number
+	retailer: number
 }
 
-export type LoginResponse = SuccessResponse<LoginData>
+type Merchant = {
+	name: string
+	mid: string
+	address: string
+}
+
+type CustomerType = {
+	name: string
+	sourceTypeId: number
+	status: number
+	verifications: any[]
+	merchant: Merchant
+}
+
+type Flags = {
+	isAgreedTermsConditions: boolean
+	isCompleted: boolean
+	isSubsidy: boolean
+}
+
+export type Customer = {
+	person: Person
+	quotaRemaining: QuotaRemaining
+	quotaRemainingLastMonth: QuotaRemainingLastMonth
+	customerTypes: CustomerType[]
+	channelInject: string
+	flags: Flags
+}
