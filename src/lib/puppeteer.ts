@@ -5,7 +5,7 @@ import { revertAuthDTO } from '@/lib/dto'
 
 export async function createBrowser() {
 	return await puppeteer.launch({
-		headless: 'shell',
+		headless: false,
 		defaultViewport: null,
 		devtools: true,
 		args: ['--no-sandbox', '--disable-setuid-sandbox'],

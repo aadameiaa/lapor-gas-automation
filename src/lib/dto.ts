@@ -32,17 +32,22 @@ export function revertAuthDTO(auth: Auth): LoginData {
 	}
 }
 
-export function customerDTO({ data }: VerifyNationalityIdResponse): Customer {
+export function customerDTO(
+	{ data }: VerifyNationalityIdResponse,
+	nationalityId: string,
+): Customer {
 	return {
 		person: {
-			nationalityId: data.nationalityId,
+			nationalityId,
 			familyId: data.familyId,
 			name: data.name,
 			email: data.email,
 			phoneNumber: data.phoneNumber,
 		},
-		quotaRemaining: data.quotaRemaining,
-		quotaRemainingLastMonth: data.quotaRemainingLastMonth,
+		quotaRemaining: {
+			thisMonth: data.quotaRemaining,
+			lastMonth: data.quotaRemainingLastMonth,
+		},
 		customerTypes: data.customerTypes,
 		channelInject: data.channelInject,
 		flags: {

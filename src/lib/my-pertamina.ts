@@ -1,12 +1,12 @@
 import { StatusCodes } from 'http-status-codes'
-import { Page } from 'puppeteer'
+import { HTTPResponse, Page } from 'puppeteer'
 
 import {
 	LOGIN_ENDPOINT,
 	LOGIN_URL,
 	USER_DATA_LOCAL_STORAGE_KEY,
-	VERIFICATION_NATIONALITY_ID_URL,
-	VERIFY_NATIONALITY_ID_ENDPOINT,
+	VERIFY_CUSTOMER_ENDPOINT,
+	VERIFY_CUSTOMER_URL,
 } from '@/lib/constants'
 import { authDTO, customerDTO } from '@/lib/dto'
 import { Auth, Customer } from '@/lib/types'
@@ -68,15 +68,11 @@ export async function logout(
 	auth: Auth,
 ): Promise<null | StatusCodes> {
 	await setupAuth(page, auth)
-	await page.goto(VERIFICATION_NATIONALITY_ID_URL, {
+	await page.goto(VERIFY_CUSTOMER_URL, {
 		waitUntil: 'networkidle2',
 	})
 
-	const cookieStatus = checkCookieExpiration(
-		page,
-		VERIFICATION_NATIONALITY_ID_URL,
-	)
-
+	const cookieStatus = checkCookieExpiration(page, VERIFY_CUSTOMER_URL)
 	if (cookieStatus !== null) {
 		return cookieStatus
 	}
@@ -87,25 +83,10 @@ export async function logout(
 	return null
 }
 
-export async function verifyNationalityId(
+async function verifyNationalityId(
 	page: Page,
-	auth: Auth,
 	nationalityId: string,
-): Promise<Customer | StatusCodes> {
-	await setupAuth(page, auth)
-	await page.goto(VERIFICATION_NATIONALITY_ID_URL, {
-		waitUntil: 'networkidle2',
-	})
-
-	const cookieStatus = checkCookieExpiration(
-		page,
-		VERIFICATION_NATIONALITY_ID_URL,
-	)
-
-	if (cookieStatus !== null) {
-		return cookieStatus
-	}
-
+): Promise<HTTPResponse | StatusCodes> {
 	await page
 		.locator(
 			'input[type="search"][placeholder="Masukkan 16 digit NIK KTP Pelanggan"]',
@@ -116,7 +97,7 @@ export async function verifyNationalityId(
 	const waitedResponse = await page.waitForResponse(
 		(response) =>
 			response.url() ===
-				`${VERIFY_NATIONALITY_ID_ENDPOINT}?nationalityId=${nationalityId}` &&
+				`${VERIFY_CUSTOMER_ENDPOINT}?nationalityId=${nationalityId}` &&
 			response.request().method() !== 'OPTIONS',
 	)
 
@@ -124,6 +105,63 @@ export async function verifyNationalityId(
 		return waitedResponse.status()
 	}
 
-	const response = await waitedResponse.json()
-	return customerDTO(response)
+	return waitedResponse
+}
+
+export async function verifyCustomer(
+	page: Page,
+	auth: Auth,
+	nationalityId: string,
+): Promise<Customer | StatusCodes> {
+	await setupAuth(page, auth)
+	await page.goto(VERIFY_CUSTOMER_URL, {
+		waitUntil: 'networkidle2',
+	})
+
+	const cookieStatus = checkCookieExpiration(page, VERIFY_CUSTOMER_URL)
+	if (cookieStatus !== null) {
+		return cookieStatus
+	}
+
+	const verifyResponse = await verifyNationalityId(page, nationalityId)
+	if (!(verifyResponse instanceof HTTPResponse)) {
+		return verifyResponse
+	}
+
+	const response = await verifyResponse.json()
+	return customerDTO(response, nationalityId)
+}
+
+export async function addOrder(
+	page: Page,
+	auth: Auth,
+	{ nationalityId, quantity }: { nationalityId: string; quantity: number },
+): Promise<null | StatusCodes> {
+	await setupAuth(page, auth)
+	await page.goto(VERIFY_CUSTOMER_URL, {
+		waitUntil: 'networkidle2',
+	})
+
+	const cookieStatus = checkCookieExpiration(page, VERIFY_CUSTOMER_URL)
+	if (cookieStatus !== null) {
+		return cookieStatus
+	}
+
+	const verifyResponse = await verifyNationalityId(page, nationalityId)
+	if (!(verifyResponse instanceof HTTPResponse)) {
+		return verifyResponse
+	}
+	await page.waitForNavigation({ waitUntil: 'networkidle2' })
+
+	quantity > 1 &&
+		(await page
+			.locator('button[data-testid="actionIcon2"]')
+			.click({ count: quantity - 1 }))
+	await page.locator('button[data-testid="btnCheckOrder"]').click()
+	await page.waitForNavigation({ waitUntil: 'networkidle2' })
+
+	await page.locator('button[data-testid="btnPay"]').click()
+	await page.waitForNavigation({ waitUntil: 'networkidle2' })
+
+	return null
 }

@@ -28,12 +28,6 @@ type QuotaRemaining = {
 	retailer: number
 }
 
-type QuotaRemainingLastMonth = {
-	type: number
-	parent: number
-	retailer: number
-}
-
 type Merchant = {
 	name: string
 	mid: string
@@ -56,8 +50,10 @@ type Flags = {
 
 export type Customer = {
 	person: Person
-	quotaRemaining: QuotaRemaining
-	quotaRemainingLastMonth: QuotaRemainingLastMonth
+	quotaRemaining: {
+		thisMonth: QuotaRemaining
+		lastMonth: QuotaRemaining
+	}
 	customerTypes: CustomerType[]
 	channelInject: string
 	flags: Flags
