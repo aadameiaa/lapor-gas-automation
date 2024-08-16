@@ -55,6 +55,67 @@ export type VerifyNationalityIdData = {
 	isSubsidi: boolean
 }
 
+export type Agen = {
+	id: string
+	name: string
+}
+
+export type Bank = {
+	bankName: any
+	accountName: any
+	accountNumber: any
+}
+
+export type ProfileData = {
+	registrationId: string
+	name: string
+	address: string
+	city: string
+	province: string
+	coordinate: string
+	storeName: string
+	storeAddress: string
+	phoneNumber: string
+	tid: string
+	mid: any
+	spbu: string
+	merchantType: string
+	midMap: string
+	isSubsidiProduct: boolean
+	storePhoneNumber: string
+	email: string
+	nationalityId: string
+	ditrictName: string
+	villageName: string
+	zipcode: string
+	agen: Agen
+	isActiveMyptm: boolean
+	bank: Bank
+	myptmActivationStatus: any
+	isAvailableTransaction: boolean
+}
+
+export type ProductData = {
+	registrationId: string
+	storeName: string
+	productId: string
+	productName: string
+	stockAvailable: number
+	stockRedeem: number
+	sold: number
+	modal: number
+	price: number
+	productMinPrice: number
+	productMaxPrice: number
+	image: string
+	stockDate: string
+	lastStock: number
+	lastStockDate: string
+	lastSyncAt: string
+}
+
 export type LoginResponse = SuccessResponse<LoginData>
 export type VerifyNationalityIdResponse =
 	SuccessResponse<VerifyNationalityIdData>
+export type ProfileResponse = SuccessResponse<ProfileData>
+export type ProductsResponse = SuccessResponse<ProductData>

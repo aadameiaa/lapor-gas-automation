@@ -4,12 +4,15 @@ import { HTTPResponse, Page } from 'puppeteer'
 import {
 	LOGIN_ENDPOINT,
 	LOGIN_URL,
+	MANAGE_PRODUCT_URL,
 	MY_PERTAMINA_DELAY,
+	PRODUCTS_ENDPOINT,
+	PROFILE_ENDPOINT,
 	USER_DATA_LOCAL_STORAGE_KEY,
 	VERIFY_CUSTOMER_ENDPOINT,
 	VERIFY_CUSTOMER_URL,
 } from '@/lib/constants'
-import { authDTO, customerDTO } from '@/lib/dto'
+import { authDTO, customerDTO, productDTO, profileDTO } from '@/lib/dto'
 import { Auth, Customer, Order, Person } from '@/lib/types'
 import { delay, deleteJSONFile, writeJSONFile } from '@/lib/utils'
 
@@ -85,6 +88,54 @@ export async function logout(
 	await page.locator('button[data-testid="btnLogout"][type="button"]').click()
 
 	deleteJSONFile('auth.json')
+
+	return null
+}
+
+export async function getProfile(
+	page: Page,
+	auth: Auth,
+): Promise<null | StatusCodes> {
+	await setupAuth(page, auth)
+	await page.goto(VERIFY_CUSTOMER_URL)
+	const waitedResponse = await page.waitForResponse(
+		(response) =>
+			response.url() === PROFILE_ENDPOINT &&
+			response.request().method() !== 'OPTIONS',
+	)
+
+	if (!waitedResponse.ok()) {
+		return waitedResponse.status()
+	}
+
+	const response = await waitedResponse.json()
+	const profile = profileDTO(response)
+
+	writeJSONFile('profile.json', profile)
+
+	return null
+}
+
+export async function getProduct(
+	page: Page,
+	auth: Auth,
+): Promise<null | StatusCodes> {
+	await setupAuth(page, auth)
+	await page.goto(MANAGE_PRODUCT_URL)
+	const waitedResponse = await page.waitForResponse(
+		(response) =>
+			response.url() === PRODUCTS_ENDPOINT &&
+			response.request().method() !== 'OPTIONS',
+	)
+
+	if (!waitedResponse.ok()) {
+		return waitedResponse.status()
+	}
+
+	const response = await waitedResponse.json()
+	const products = productDTO(response)
+
+	writeJSONFile('product.json', products)
 
 	return null
 }
