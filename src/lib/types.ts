@@ -14,7 +14,7 @@ export type Auth = {
 	settings: AuthSettings
 }
 
-type Person = {
+export type Person = {
 	nationalityId: string
 	familyId: string
 	name: string
@@ -57,4 +57,9 @@ export type Customer = {
 	customerTypes: CustomerType[]
 	channelInject: string
 	flags: Flags
+}
+
+export type Order = {
+	nationalityId: Person['nationalityId']
+	quantity: number
 }

@@ -14,9 +14,9 @@ export function writeJSONFile(filename: string, data: any) {
 	!fs.existsSync(dir) && fs.mkdirSync(dir)
 	fs.writeFile(filepath, JSON.stringify(data, null, 2), 'utf-8', (error) => {
 		if (error) {
-			console.error('Error writing file:', error)
+			console.error(`Error write ${filename} file:`, error)
 		} else {
-			console.log('File has been written')
+			console.log(`${filename} file has been written`)
 		}
 	})
 }
@@ -24,9 +24,9 @@ export function writeJSONFile(filename: string, data: any) {
 export function deleteJSONFile(filename: string) {
 	fs.unlink(`src/data/${filename}`, (error) => {
 		if (error) {
-			console.error('Error deleting file:', error)
+			console.error(`Error deleting ${filename} file:`, error)
 		} else {
-			console.log('File has been deleted')
+			console.log(`${filename} file has been deleted`)
 		}
 	})
 }

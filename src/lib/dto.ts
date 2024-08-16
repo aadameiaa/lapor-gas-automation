@@ -5,7 +5,7 @@ import {
 	LoginResponse,
 	VerifyNationalityIdResponse,
 } from '@/lib/responses'
-import { Auth, Customer } from '@/lib/types'
+import { Auth, Customer, Person } from '@/lib/types'
 
 export function authDTO({ data }: LoginResponse, cookies: Cookie[]): Auth {
 	return {
@@ -34,7 +34,7 @@ export function revertAuthDTO(auth: Auth): LoginData {
 
 export function customerDTO(
 	{ data }: VerifyNationalityIdResponse,
-	nationalityId: string,
+	nationalityId: Person['nationalityId'],
 ): Customer {
 	return {
 		person: {

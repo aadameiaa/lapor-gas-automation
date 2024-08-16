@@ -11,3 +11,4 @@ export const VERIFY_CUSTOMER_ENDPOINT =
 	'https://api-map.my-pertamina.id/customers/v1/verify-nik'
 
 export const USER_DATA_LOCAL_STORAGE_KEY = 'maplite_user_data'
+export const MY_PERTAMINA_DELAY = 60 * 1000
