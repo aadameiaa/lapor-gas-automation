@@ -1,27 +1,101 @@
 import chalk from 'chalk'
 
-import { Auth } from '@/lib/types'
+import { Auth, Customer, Product, Profile } from '@/lib/types'
 
 export function logAuth(auth: Auth) {
-	console.log(chalk.blue('Access Token: ') + chalk.cyan(auth.accessToken))
+	console.log(
+		chalk.blue('  Access Token: ') + chalk.cyan(auth.accessToken) + '\n',
+	)
+}
+
+export function logProfile(profile: Profile) {
+	console.log(chalk.blue('  Profile Information:'))
 
 	console.log(
-		chalk.blue('Settings:') +
+		chalk.yellow('    - Person:') +
 			'\n' +
-			chalk.yellow('  - isLogin: ') +
-			chalk.green(auth.settings.isLogin) +
+			chalk.yellow('      - Nationality ID: ') +
+			chalk.cyan(profile.person.nationalityId) +
 			'\n' +
-			chalk.yellow('  - Merchant Type: ') +
-			chalk.magenta(auth.settings.merchantType) +
+			chalk.yellow('      - Name: ') +
+			chalk.cyan(profile.person.name) +
 			'\n' +
-			chalk.yellow('  - isDefaultPin: ') +
-			chalk.green(auth.settings.isDefaultPin) +
+			chalk.yellow('      - Email: ') +
+			chalk.cyan(profile.person.email) +
 			'\n' +
-			chalk.yellow('  - isNewUser: ') +
-			chalk.green(auth.settings.isNewUser) +
+			chalk.yellow('      - Phone Number: ') +
+			chalk.cyan(profile.person.phoneNumber) +
 			'\n' +
-			chalk.yellow('  - isSubsidyProduct: ') +
-			chalk.green(auth.settings.isSubsidyProduct) +
+			chalk.yellow('    - Location:') +
+			'\n' +
+			chalk.yellow('      - Address: ') +
+			chalk.cyan(profile.location.address) +
+			'\n' +
+			chalk.yellow('      - Village: ') +
+			chalk.cyan(profile.location.village) +
+			'\n' +
+			chalk.yellow('      - District: ') +
+			chalk.cyan(profile.location.district) +
+			'\n' +
+			chalk.yellow('      - City: ') +
+			chalk.cyan(profile.location.city) +
+			'\n' +
+			chalk.yellow('      - Province: ') +
+			chalk.cyan(profile.location.province) +
+			'\n' +
+			chalk.yellow('      - Zip Code: ') +
+			chalk.cyan(profile.location.zipCode) +
+			'\n' +
+			chalk.yellow('      - Coordinate: ') +
+			chalk.cyan(profile.location.coordinate) +
+			'\n' +
+			chalk.yellow('    - Agent:') +
+			'\n' +
+			chalk.yellow('      - ID: ') +
+			chalk.cyan(profile.agent.id) +
+			'\n' +
+			chalk.yellow('      - Name: ') +
+			chalk.cyan(profile.agent.name) +
+			'\n',
+	)
+}
+
+export function logProduct(product: Product) {
+	console.log(chalk.blue('  Product Information:'))
+
+	console.log(
+		chalk.yellow('    - Name: ') +
+			chalk.cyan(product.name) +
+			'\n' +
+			chalk.yellow('    - Available Stock: ') +
+			chalk.cyan(product.stock.available) +
+			'\n' +
+			chalk.yellow('    - Redeem Stock: ') +
+			chalk.cyan(product.stock.redeem) +
+			'\n',
+	)
+}
+
+export function logCustomer(customer: Customer) {
+	console.log(chalk.blue('  Customer Information:'))
+
+	console.log(
+		chalk.yellow('    - Personal Details:') +
+			'\n' +
+			chalk.yellow('      - Nationality ID: ') +
+			chalk.cyan(customer.person.nationalityId) +
+			'\n' +
+			chalk.yellow('      - Name: ') +
+			chalk.cyan(customer.person.name) +
+			'\n' +
+			chalk.yellow('    - Customer Types: ') +
+			customer.customerTypes.map((type) => chalk.cyan(type.name)).join(' | ') +
+			'\n' +
+			chalk.yellow('    - Quota Remaining: ') +
+			chalk.cyan(customer.quotaRemaining.thisMonth.parent) +
+			'\n' +
+			chalk.yellow('    - Channel Inject: ') +
+			chalk.cyan(customer.channelInject) +
 			'\n',
 	)
 }

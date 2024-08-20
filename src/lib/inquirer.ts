@@ -4,9 +4,15 @@ import { mkdirSync, readFileSync, unlinkSync, writeFileSync } from 'fs'
 import { createSpinner } from 'nanospinner'
 import { Page } from 'puppeteer'
 
-import { logAuth } from '@/lib/logger'
-import { login, logout } from '@/lib/my-pertamina'
-import { TaskType } from '@/lib/types'
+import { logAuth, logCustomer, logProduct, logProfile } from '@/lib/logger'
+import {
+	getProduct,
+	getProfile,
+	login,
+	logout,
+	verifyCustomer,
+} from '@/lib/my-pertamina'
+import { Auth, TaskType } from '@/lib/types'
 
 export async function askForTask(): Promise<TaskType> {
 	return await select<TaskType>({
@@ -91,6 +97,21 @@ export async function askForPin(): Promise<string> {
 	})
 }
 
+export async function askForNationalityId(): Promise<string> {
+	return await input({
+		message: 'Enter customer nationality ID:',
+		required: true,
+		validate: (value) => {
+			const nationalityIdRegex = /^\d{16}$/
+
+			return (
+				nationalityIdRegex.test(value) ||
+				'Please enter customer nationality ID as a 16-digit number.'
+			)
+		},
+	})
+}
+
 async function processLoginTask(page: Page) {
 	const phoneNumber = await askForPhoneNumber()
 	const pin = await askForPin()
@@ -141,20 +162,96 @@ async function processLogoutTask(page: Page) {
 	})
 	console.log(
 		chalk.blue(
-			'Your session has ended. Please log in again when you need to use the system.',
+			'  Your session has ended. Please log in again when you need to use the system.',
 		),
 	)
-	console.log(chalk.cyan('Take care and see you next time! ✨\n'))
+	console.log(chalk.cyan('  Take care and see you next time! ✨\n'))
+
+	return true
+}
+
+async function processViewProfileTask(page: Page) {
+	const spinner = createSpinner('Processing view profile task').start()
+	const auth = JSON.parse(
+		readFileSync('public/data/auth.json', { encoding: 'utf-8' }),
+	) as Auth
+	const data = await getProfile(page, auth)
+
+	if (typeof data === 'number') {
+		spinner.error({ text: `View profile failed with status code: ${data}` })
+
+		return true
+	}
+
+	spinner.success({
+		text: chalk.green.bold('🎉 View profile Successful! 🎉\n'),
+	})
+
+	logProfile(data)
+
+	return true
+}
+
+async function processCheckProductStock(page: Page) {
+	const spinner = createSpinner('Processing check product stock task').start()
+	const auth = JSON.parse(
+		readFileSync('public/data/auth.json', { encoding: 'utf-8' }),
+	) as Auth
+	const data = await getProduct(page, auth)
+
+	if (typeof data === 'number') {
+		spinner.error({
+			text: chalk.red.bold(
+				`Check product stock failed with status code: ${data}\n`,
+			),
+		})
+
+		return true
+	}
+
+	spinner.success({
+		text: chalk.green.bold('🎉 View profile Successful! 🎉\n'),
+	})
+
+	logProduct(data)
+
+	return true
+}
+
+async function processVerifyCustomerTask(page: Page) {
+	const nationalityId = await askForNationalityId()
+
+	const auth = JSON.parse(
+		readFileSync('public/data/auth.json', { encoding: 'utf-8' }),
+	)
+	const spinner = createSpinner('Processing verify customer task').start()
+	const data = await verifyCustomer(page, auth, nationalityId)
+
+	if (typeof data === 'number') {
+		spinner.error({
+			text: chalk.red.bold(
+				`Verify customer failed with status code: ${data}\n`,
+			),
+		})
+
+		return true
+	}
+
+	spinner.success({
+		text: chalk.green.bold('🎉 Verify customer Successful! 🎉\n'),
+	})
+
+	logCustomer(data)
 
 	return true
 }
 
 async function processExitTask() {
 	console.log(
-		chalk.green.bold('Thank you for using LPG Gas Automation CLI! 🙏'),
+		chalk.green.bold('  Thank you for using LPG Gas Automation CLI! 🙏'),
 	)
-	console.log(chalk.blue('We hope to see you again. Have a great day! 🌟'))
-	console.log(chalk.cyan('Goodbye! 👋\n'))
+	console.log(chalk.blue('  We hope to see you again. Have a great day! 🌟'))
+	console.log(chalk.cyan('  Goodbye! 👋\n'))
 
 	return false
 }
@@ -168,6 +265,18 @@ export async function processTask(
 			return await processLoginTask(page)
 		case 'LOGOUT':
 			return await processLogoutTask(page)
+		case 'VIEW_PROFILE':
+			return await processViewProfileTask(page)
+		case 'CHECK_PRODUCT_STOCK':
+			return await processCheckProductStock(page)
+		case 'VERIFY_CUSTOMER':
+			return await processVerifyCustomerTask(page)
+		case 'VERIFY_CUSTOMERS':
+			return true
+		case 'CREATE_ORDER':
+			return true
+		case 'CREATE_ORDERS':
+			return true
 		case 'EXIT':
 			return await processExitTask()
 		default:
