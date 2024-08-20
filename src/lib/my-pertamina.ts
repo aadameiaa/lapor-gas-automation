@@ -13,8 +13,8 @@ import {
 	VERIFY_CUSTOMER_URL,
 } from '@/lib/constants'
 import { authDTO, customerDTO, productDTO, profileDTO } from '@/lib/dto'
-import { Auth, Customer, Order, Person } from '@/lib/types'
-import { delay, deleteJSONFile, writeJSONFile } from '@/lib/utils'
+import { Auth, Customer, Order, Person, Product, Profile } from '@/lib/types'
+import { delay } from '@/lib/utils'
 
 export async function setupAuth(page: Page, auth: Auth) {
 	await page.goto(LOGIN_URL, { waitUntil: 'networkidle2' })
@@ -42,7 +42,7 @@ export async function login(
 	page: Page,
 	phoneNumber: string,
 	pin: string,
-): Promise<null | StatusCodes> {
+): Promise<Auth | StatusCodes> {
 	await page.goto(LOGIN_URL, { waitUntil: 'networkidle2' })
 	await delay(3000)
 
@@ -65,9 +65,7 @@ export async function login(
 	const cookies = await page.cookies()
 	const auth = authDTO(response, cookies)
 
-	writeJSONFile('auth.json', auth)
-
-	return null
+	return auth
 }
 
 export async function logout(
@@ -87,15 +85,13 @@ export async function logout(
 	await page.locator('div[data-testid="btnLogout"]').click()
 	await page.locator('button[data-testid="btnLogout"][type="button"]').click()
 
-	deleteJSONFile('auth.json')
-
 	return null
 }
 
 export async function getProfile(
 	page: Page,
 	auth: Auth,
-): Promise<null | StatusCodes> {
+): Promise<Profile | StatusCodes> {
 	await setupAuth(page, auth)
 	await page.goto(VERIFY_CUSTOMER_URL)
 	const waitedResponse = await page.waitForResponse(
@@ -111,15 +107,13 @@ export async function getProfile(
 	const response = await waitedResponse.json()
 	const profile = profileDTO(response)
 
-	writeJSONFile('profile.json', profile)
-
-	return null
+	return profile
 }
 
 export async function getProduct(
 	page: Page,
 	auth: Auth,
-): Promise<null | StatusCodes> {
+): Promise<Product | StatusCodes> {
 	await setupAuth(page, auth)
 	await page.goto(MANAGE_PRODUCT_URL)
 	const waitedResponse = await page.waitForResponse(
@@ -133,11 +127,9 @@ export async function getProduct(
 	}
 
 	const response = await waitedResponse.json()
-	const products = productDTO(response)
+	const product = productDTO(response)
 
-	writeJSONFile('product.json', products)
-
-	return null
+	return product
 }
 
 async function verifyNationalityId(
@@ -165,7 +157,7 @@ export async function verifyCustomer(
 	page: Page,
 	auth: Auth,
 	nationalityId: Person['nationalityId'],
-): Promise<null | StatusCodes> {
+): Promise<Customer | StatusCodes> {
 	await setupAuth(page, auth)
 	await page.goto(VERIFY_CUSTOMER_URL, {
 		waitUntil: 'networkidle2',
@@ -184,16 +176,14 @@ export async function verifyCustomer(
 	const response = await verifyResponse.json()
 	const customer = customerDTO(response, nationalityId)
 
-	writeJSONFile('customer.json', customer)
-
-	return null
+	return customer
 }
 
 export async function verifyCustomers(
 	page: Page,
 	auth: Auth,
 	nationalityIds: string[],
-): Promise<null | StatusCodes> {
+): Promise<Customer[] | StatusCodes> {
 	await setupAuth(page, auth)
 	await page.goto(VERIFY_CUSTOMER_URL, {
 		waitUntil: 'networkidle2',
@@ -232,16 +222,14 @@ export async function verifyCustomers(
 		await page.goto(VERIFY_CUSTOMER_URL, { waitUntil: 'networkidle2' })
 	}
 
-	writeJSONFile('customers.json', customers)
-
-	return null
+	return customers
 }
 
 export async function addOrder(
 	page: Page,
 	auth: Auth,
 	order: Order,
-): Promise<null | StatusCodes> {
+): Promise<Order | StatusCodes> {
 	await setupAuth(page, auth)
 	await page.goto(VERIFY_CUSTOMER_URL, {
 		waitUntil: 'networkidle2',
@@ -268,7 +256,5 @@ export async function addOrder(
 	await page.locator('button[data-testid="btnPay"]').click()
 	await page.waitForNavigation({ waitUntil: 'networkidle2' })
 
-	writeJSONFile('order.json', order)
-
-	return null
+	return order
 }

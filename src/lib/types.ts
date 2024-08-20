@@ -1,5 +1,7 @@
 import { Cookie } from 'puppeteer'
 
+import { TASK_TYPES } from '@/lib/constants'
+
 type AuthSettings = {
 	isLogin: boolean
 	merchantType: string
@@ -142,3 +144,5 @@ export type Product = {
 	store: ProductStore
 	stock: Stock
 }
+
+export type TaskType = (typeof TASK_TYPES)[number]

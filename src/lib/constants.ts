@@ -18,3 +18,15 @@ export const PRODUCTS_ENDPOINT =
 
 export const USER_DATA_LOCAL_STORAGE_KEY = 'maplite_user_data'
 export const MY_PERTAMINA_DELAY = 60 * 1000
+
+export const TASK_TYPES = [
+	'LOGIN',
+	'LOGOUT',
+	'VIEW_PROFILE',
+	'CHECK_PRODUCT_STOCK',
+	'VERIFY_CUSTOMER',
+	'VERIFY_CUSTOMERS',
+	'CREATE_ORDER',
+	'CREATE_ORDERS',
+	'EXIT',
+] as const

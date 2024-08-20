@@ -77,4 +77,4 @@ Thumbs.db
 
 # Secrets files
 .env
-src/data
+public/data
