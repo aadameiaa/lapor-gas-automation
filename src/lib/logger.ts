@@ -1,6 +1,6 @@
 import chalk from 'chalk'
 
-import { Auth, Customer, Product, Profile } from '@/lib/types'
+import { Auth, Customer, Order, Product, Profile } from '@/lib/types'
 
 export function logAuth(auth: Auth) {
 	console.log(
@@ -96,6 +96,19 @@ export function logCustomer(customer: Customer) {
 			'\n' +
 			chalk.yellow('    - Channel Inject: ') +
 			chalk.cyan(customer.channelInject) +
+			'\n',
+	)
+}
+
+export function logOrder(order: Order) {
+	console.log(chalk.blue('  Order Information:'))
+
+	console.log(
+		chalk.yellow('    - Nationality ID: ') +
+			chalk.cyan(order.nationalityId) +
+			'\n' +
+			chalk.yellow('    - Quantity: ') +
+			chalk.cyan(order.quantity) +
 			'\n',
 	)
 }

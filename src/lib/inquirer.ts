@@ -1,11 +1,18 @@
-import { input, password, select, Separator } from '@inquirer/prompts'
+import { input, number, password, select, Separator } from '@inquirer/prompts'
 import chalk from 'chalk'
 import { mkdirSync, readFileSync, unlinkSync, writeFileSync } from 'fs'
 import { createSpinner } from 'nanospinner'
 import { Page } from 'puppeteer'
 
-import { logAuth, logCustomer, logProduct, logProfile } from '@/lib/logger'
 import {
+	logAuth,
+	logCustomer,
+	logOrder,
+	logProduct,
+	logProfile,
+} from '@/lib/logger'
+import {
+	addOrder,
 	getProduct,
 	getProfile,
 	login,
@@ -39,7 +46,7 @@ export async function askForTask(): Promise<TaskType> {
 				description: 'View the current stock of available products',
 			},
 			{
-				name: 'Verify a Single Customer',
+				name: 'Verify a Customer',
 				value: 'VERIFY_CUSTOMER',
 				description: 'Verify a specific customer by nationality ID',
 			},
@@ -112,6 +119,21 @@ export async function askForNationalityId(): Promise<string> {
 	})
 }
 
+export async function askForOrderQuantity(): Promise<number> {
+	return (await number({
+		message: 'Enter order quantity for LPG 3 kg:',
+		required: true,
+		default: 1,
+		min: 1,
+		max: 20,
+		// validate: (value) => {
+		// 	return (
+		// 		(value && value >= 1) || 'The order quantity must be greater than one.'
+		// 	)
+		// },
+	})) as number
+}
+
 async function processLoginTask(page: Page) {
 	const phoneNumber = await askForPhoneNumber()
 	const pin = await askForPin()
@@ -171,10 +193,10 @@ async function processLogoutTask(page: Page) {
 }
 
 async function processViewProfileTask(page: Page) {
-	const spinner = createSpinner('Processing view profile task').start()
 	const auth = JSON.parse(
 		readFileSync('public/data/auth.json', { encoding: 'utf-8' }),
 	) as Auth
+	const spinner = createSpinner('Processing view profile task').start()
 	const data = await getProfile(page, auth)
 
 	if (typeof data === 'number') {
@@ -193,10 +215,10 @@ async function processViewProfileTask(page: Page) {
 }
 
 async function processCheckProductStock(page: Page) {
-	const spinner = createSpinner('Processing check product stock task').start()
 	const auth = JSON.parse(
 		readFileSync('public/data/auth.json', { encoding: 'utf-8' }),
 	) as Auth
+	const spinner = createSpinner('Processing check product stock task').start()
 	const data = await getProduct(page, auth)
 
 	if (typeof data === 'number') {
@@ -223,7 +245,7 @@ async function processVerifyCustomerTask(page: Page) {
 
 	const auth = JSON.parse(
 		readFileSync('public/data/auth.json', { encoding: 'utf-8' }),
-	)
+	) as Auth
 	const spinner = createSpinner('Processing verify customer task').start()
 	const data = await verifyCustomer(page, auth, nationalityId)
 
@@ -242,6 +264,33 @@ async function processVerifyCustomerTask(page: Page) {
 	})
 
 	logCustomer(data)
+
+	return true
+}
+
+async function processAddOrderTask(page: Page) {
+	const nationalityId = await askForNationalityId()
+	const quantity = await askForOrderQuantity()
+
+	const auth = JSON.parse(
+		readFileSync('public/data/auth.json', { encoding: 'utf-8' }),
+	) as Auth
+	const spinner = createSpinner('Processing add order task').start()
+	const data = await addOrder(page, auth, { nationalityId, quantity })
+
+	if (typeof data === 'number') {
+		spinner.error({
+			text: chalk.red.bold(`Add order failed with status code: ${data}\n`),
+		})
+
+		return true
+	}
+
+	spinner.success({
+		text: chalk.green.bold('🎉 Add order Successful! 🎉\n'),
+	})
+
+	logOrder(data)
 
 	return true
 }
@@ -274,7 +323,7 @@ export async function processTask(
 		case 'VERIFY_CUSTOMERS':
 			return true
 		case 'CREATE_ORDER':
-			return true
+			return await processAddOrderTask(page)
 		case 'CREATE_ORDERS':
 			return true
 		case 'EXIT':

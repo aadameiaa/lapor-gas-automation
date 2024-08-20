@@ -14,10 +14,10 @@ import {
 } from '@/lib/constants'
 import { authDTO, customerDTO, productDTO, profileDTO } from '@/lib/dto'
 import { Auth, Customer, Order, Person, Product, Profile } from '@/lib/types'
-import { delay } from '@/lib/utils'
+import { delay, isValidOrderQuantity } from '@/lib/utils'
 
 export async function setupAuth(page: Page, auth: Auth) {
-	await page.goto(LOGIN_URL, { waitUntil: 'networkidle2' })
+	await page.goto(LOGIN_URL, { waitUntil: 'networkidle0' })
 	await page.setCookie(...auth.cookies)
 	await page.evaluate(
 		async (key, value) => {
@@ -43,8 +43,7 @@ export async function login(
 	phoneNumber: string,
 	pin: string,
 ): Promise<Auth | StatusCodes> {
-	await page.goto(LOGIN_URL, { waitUntil: 'networkidle2' })
-	await delay(3000)
+	await page.goto(LOGIN_URL, { waitUntil: 'networkidle0' })
 
 	await page
 		.locator('input[placeholder="Email atau No. Handphone"]')
@@ -74,7 +73,7 @@ export async function logout(
 ): Promise<null | StatusCodes> {
 	await setupAuth(page, auth)
 	await page.goto(VERIFY_CUSTOMER_URL, {
-		waitUntil: 'networkidle2',
+		waitUntil: 'networkidle0',
 	})
 
 	const cookieStatus = checkCookieExpiration(page, VERIFY_CUSTOMER_URL)
@@ -160,7 +159,7 @@ export async function verifyCustomer(
 ): Promise<Customer | StatusCodes> {
 	await setupAuth(page, auth)
 	await page.goto(VERIFY_CUSTOMER_URL, {
-		waitUntil: 'networkidle2',
+		waitUntil: 'networkidle0',
 	})
 
 	const cookieStatus = checkCookieExpiration(page, VERIFY_CUSTOMER_URL)
@@ -186,7 +185,7 @@ export async function verifyCustomers(
 ): Promise<Customer[] | StatusCodes> {
 	await setupAuth(page, auth)
 	await page.goto(VERIFY_CUSTOMER_URL, {
-		waitUntil: 'networkidle2',
+		waitUntil: 'networkidle0',
 	})
 
 	const cookieStatus = checkCookieExpiration(page, VERIFY_CUSTOMER_URL)
@@ -209,7 +208,7 @@ export async function verifyCustomers(
 				await delay(MY_PERTAMINA_DELAY)
 			}
 
-			await page.goto(VERIFY_CUSTOMER_URL, { waitUntil: 'networkidle2' })
+			await page.goto(VERIFY_CUSTOMER_URL, { waitUntil: 'networkidle0' })
 
 			continue
 		}
@@ -219,7 +218,7 @@ export async function verifyCustomers(
 
 		customers = [...customers, customer]
 
-		await page.goto(VERIFY_CUSTOMER_URL, { waitUntil: 'networkidle2' })
+		await page.goto(VERIFY_CUSTOMER_URL, { waitUntil: 'networkidle0' })
 	}
 
 	return customers
@@ -232,7 +231,7 @@ export async function addOrder(
 ): Promise<Order | StatusCodes> {
 	await setupAuth(page, auth)
 	await page.goto(VERIFY_CUSTOMER_URL, {
-		waitUntil: 'networkidle2',
+		waitUntil: 'networkidle0',
 	})
 
 	const cookieStatus = checkCookieExpiration(page, VERIFY_CUSTOMER_URL)
@@ -244,17 +243,25 @@ export async function addOrder(
 	if (!verifyResponse.status()) {
 		return verifyResponse.status()
 	}
-	await page.waitForNavigation({ waitUntil: 'networkidle2' })
+	await page.waitForNavigation({ waitUntil: 'networkidle0' })
 
-	order.quantity > 1 &&
-		(await page
-			.locator('button[data-testid="actionIcon2"]')
-			.click({ count: order.quantity - 1 }))
+	const response = await verifyResponse.json()
+	const customer = customerDTO(response, order.nationalityId)
+
+	if (isValidOrderQuantity(order, customer)) {
+		order.quantity > 1 &&
+			(await page
+				.locator('button[data-testid="actionIcon2"]')
+				.click({ count: order.quantity - 1 }))
+	} else {
+		return StatusCodes.BAD_REQUEST
+	}
+
 	await page.locator('button[data-testid="btnCheckOrder"]').click()
-	await page.waitForNavigation({ waitUntil: 'networkidle2' })
+	await page.waitForNavigation({ waitUntil: 'networkidle0' })
 
 	await page.locator('button[data-testid="btnPay"]').click()
-	await page.waitForNavigation({ waitUntil: 'networkidle2' })
+	await page.waitForNavigation({ waitUntil: 'networkidle0' })
 
 	return order
 }
