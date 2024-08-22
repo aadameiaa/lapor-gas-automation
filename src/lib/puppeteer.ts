@@ -1,7 +1,7 @@
 import puppeteer, { Browser } from 'puppeteer'
 
-import { DEFAULT_PUPPETEER_TIMEOUT } from '@/lib/constants'
-import { revertAuthDTO } from '@/lib/dto'
+import { DEFAULT_PUPPETEER_TIMEOUT } from './constants'
+import { revertAuthDTO } from './dto'
 
 export async function createBrowser() {
 	return await puppeteer.launch({

@@ -1,6 +1,6 @@
 import chalk from 'chalk'
 
-import { Auth, Customer, Order, Product, Profile } from '@/lib/types'
+import { Auth, Customer, Order, Product, Profile } from './types'
 
 export function logAuth(auth: Auth) {
 	console.log(

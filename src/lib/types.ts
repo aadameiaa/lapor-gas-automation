@@ -1,6 +1,6 @@
 import { Cookie } from 'puppeteer'
 
-import { TASK_TYPES } from '@/lib/constants'
+import { TASK_TYPES } from './constants'
 
 type AuthSettings = {
 	isLogin: boolean

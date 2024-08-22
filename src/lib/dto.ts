@@ -6,8 +6,8 @@ import {
 	ProductsResponse,
 	ProfileResponse,
 	VerifyNationalityIdResponse,
-} from '@/lib/responses'
-import { Auth, Customer, Person, Product, Profile } from '@/lib/types'
+} from './responses'
+import { Auth, Customer, Person, Product, Profile } from './types'
 
 export function authDTO({ data }: LoginResponse, cookies: Cookie[]): Auth {
 	return {

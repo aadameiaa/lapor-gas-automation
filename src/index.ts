@@ -1,7 +1,9 @@
+#!/usr/bin/env node
+
 import chalk from 'chalk'
 
-import { askForTask, processTask } from '@/lib/inquirer'
-import { createBrowser, setupPage } from '@/lib/puppeteer'
+import { askForTask, processTask } from './lib/inquirer'
+import { createBrowser, setupPage } from './lib/puppeteer'
 
 const main = async () => {
 	const browser = await createBrowser()

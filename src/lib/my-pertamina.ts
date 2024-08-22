@@ -11,10 +11,10 @@ import {
 	USER_DATA_LOCAL_STORAGE_KEY,
 	VERIFY_CUSTOMER_ENDPOINT,
 	VERIFY_CUSTOMER_URL,
-} from '@/lib/constants'
-import { authDTO, customerDTO, productDTO, profileDTO } from '@/lib/dto'
-import { Auth, Customer, Order, Person, Product, Profile } from '@/lib/types'
-import { delay, isValidOrderQuantity } from '@/lib/utils'
+} from './constants'
+import { authDTO, customerDTO, productDTO, profileDTO } from './dto'
+import { Auth, Customer, Order, Person, Product, Profile } from './types'
+import { delay, isValidOrderQuantity } from './utils'
 
 export async function setupAuth(page: Page, auth: Auth) {
 	await page.goto(LOGIN_URL, { waitUntil: 'networkidle0' })
@@ -32,7 +32,10 @@ export async function setupAuth(page: Page, auth: Auth) {
 	)
 }
 
-export function checkCookieExpiration(page: Page, url: string) {
+export function checkCookieExpiration(
+	page: Page,
+	url: string,
+): null | StatusCodes {
 	const isRedirected = page.url() !== url
 
 	return isRedirected ? StatusCodes.UNAUTHORIZED : null
@@ -51,18 +54,18 @@ export async function login(
 	await page.locator('input[placeholder="PIN (6-digit)"]').fill(pin)
 	await page.locator('button[type="submit"]').click()
 
-	const waitedResponse = await page.waitForResponse(
+	const response = await page.waitForResponse(
 		(response) =>
 			response.url() === LOGIN_ENDPOINT &&
 			response.request().method() !== 'OPTIONS',
 	)
-	if (!waitedResponse.ok()) {
-		return waitedResponse.status()
+	if (!response.ok()) {
+		return response.status()
 	}
 
-	const response = await waitedResponse.json()
+	const body = await response.json()
 	const cookies = await page.cookies()
-	const auth = authDTO(response, cookies)
+	const auth = authDTO(body, cookies)
 
 	return auth
 }
@@ -77,7 +80,7 @@ export async function logout(
 	})
 
 	const cookieStatus = checkCookieExpiration(page, VERIFY_CUSTOMER_URL)
-	if (cookieStatus !== null) {
+	if (typeof cookieStatus === 'number') {
 		return cookieStatus
 	}
 

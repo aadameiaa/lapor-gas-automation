@@ -10,7 +10,7 @@ import {
 	logOrder,
 	logProduct,
 	logProfile,
-} from '@/lib/logger'
+} from './logger'
 import {
 	addOrder,
 	getProduct,
@@ -18,8 +18,8 @@ import {
 	login,
 	logout,
 	verifyCustomer,
-} from '@/lib/my-pertamina'
-import { Auth, TaskType } from '@/lib/types'
+} from './my-pertamina'
+import { Auth, TaskType } from './types'
 
 export async function askForTask(): Promise<TaskType> {
 	return await select<TaskType>({
@@ -126,11 +126,6 @@ export async function askForOrderQuantity(): Promise<number> {
 		default: 1,
 		min: 1,
 		max: 20,
-		// validate: (value) => {
-		// 	return (
-		// 		(value && value >= 1) || 'The order quantity must be greater than one.'
-		// 	)
-		// },
 	})) as number
 }
 
@@ -200,7 +195,9 @@ async function processViewProfileTask(page: Page) {
 	const data = await getProfile(page, auth)
 
 	if (typeof data === 'number') {
-		spinner.error({ text: `View profile failed with status code: ${data}` })
+		spinner.error({
+			text: chalk.red.bold(`View profile failed with status code: ${data}`),
+		})
 
 		return true
 	}

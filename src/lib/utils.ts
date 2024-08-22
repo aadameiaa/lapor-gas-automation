@@ -1,4 +1,4 @@
-import { Customer, Order } from '@/lib/types'
+import { Customer, Order } from './types'
 
 export async function delay(duration: number) {
 	return new Promise((resolve) => setTimeout(resolve, duration))
