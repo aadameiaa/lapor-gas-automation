@@ -8,107 +8,123 @@ export function logAuth(auth: Auth) {
 	)
 }
 
-export function logProfile(profile: Profile) {
+export function logProfile({ person, location, agent }: Profile) {
 	console.log(chalk.blue('  Profile Information:'))
 
 	console.log(
 		chalk.yellow('    - Person:') +
 			'\n' +
 			chalk.yellow('      - Nationality ID: ') +
-			chalk.cyan(profile.person.nationalityId) +
+			chalk.cyan(person.nationalityId) +
 			'\n' +
 			chalk.yellow('      - Name: ') +
-			chalk.cyan(profile.person.name) +
+			chalk.cyan(person.name) +
 			'\n' +
 			chalk.yellow('      - Email: ') +
-			chalk.cyan(profile.person.email) +
+			chalk.cyan(person.email) +
 			'\n' +
 			chalk.yellow('      - Phone Number: ') +
-			chalk.cyan(profile.person.phoneNumber) +
+			chalk.cyan(person.phoneNumber) +
 			'\n' +
 			chalk.yellow('    - Location:') +
 			'\n' +
 			chalk.yellow('      - Address: ') +
-			chalk.cyan(profile.location.address) +
+			chalk.cyan(location.address) +
 			'\n' +
 			chalk.yellow('      - Village: ') +
-			chalk.cyan(profile.location.village) +
+			chalk.cyan(location.village) +
 			'\n' +
 			chalk.yellow('      - District: ') +
-			chalk.cyan(profile.location.district) +
+			chalk.cyan(location.district) +
 			'\n' +
 			chalk.yellow('      - City: ') +
-			chalk.cyan(profile.location.city) +
+			chalk.cyan(location.city) +
 			'\n' +
 			chalk.yellow('      - Province: ') +
-			chalk.cyan(profile.location.province) +
+			chalk.cyan(location.province) +
 			'\n' +
 			chalk.yellow('      - Zip Code: ') +
-			chalk.cyan(profile.location.zipCode) +
+			chalk.cyan(location.zipCode) +
 			'\n' +
 			chalk.yellow('      - Coordinate: ') +
-			chalk.cyan(profile.location.coordinate) +
+			chalk.cyan(location.coordinate) +
 			'\n' +
 			chalk.yellow('    - Agent:') +
 			'\n' +
 			chalk.yellow('      - ID: ') +
-			chalk.cyan(profile.agent.id) +
+			chalk.cyan(agent.id) +
 			'\n' +
 			chalk.yellow('      - Name: ') +
-			chalk.cyan(profile.agent.name) +
+			chalk.cyan(agent.name) +
 			'\n',
 	)
 }
 
-export function logProduct(product: Product) {
+export function logProduct({ id, name, stock }: Product) {
 	console.log(chalk.blue('  Product Information:'))
 
 	console.log(
-		chalk.yellow('    - Name: ') +
-			chalk.cyan(product.name) +
+		chalk.yellow('    - ID: ') +
+			chalk.cyan(id) +
+			'\n' +
+			chalk.yellow('    - Name: ') +
+			chalk.cyan(name) +
 			'\n' +
 			chalk.yellow('    - Available Stock: ') +
-			chalk.cyan(product.stock.available) +
+			chalk.cyan(stock.available) +
 			'\n' +
 			chalk.yellow('    - Redeem Stock: ') +
-			chalk.cyan(product.stock.redeem) +
+			chalk.cyan(stock.redeem) +
 			'\n',
 	)
 }
 
-export function logCustomer(customer: Customer) {
+export function logCustomer({ nationalityId, name, types, quota }: Customer) {
 	console.log(chalk.blue('  Customer Information:'))
 
 	console.log(
 		chalk.yellow('    - Personal Details:') +
 			'\n' +
 			chalk.yellow('      - Nationality ID: ') +
-			chalk.cyan(customer.person.nationalityId) +
+			chalk.cyan(nationalityId) +
 			'\n' +
 			chalk.yellow('      - Name: ') +
-			chalk.cyan(customer.person.name) +
+			chalk.cyan(name) +
 			'\n' +
 			chalk.yellow('    - Customer Types: ') +
-			customer.customerTypes.map((type) => chalk.cyan(type.name)).join(' | ') +
+			types.map((type) => chalk.cyan(type)).join(' | ') +
 			'\n' +
 			chalk.yellow('    - Quota Remaining: ') +
-			chalk.cyan(customer.quotaRemaining.thisMonth.parent) +
-			'\n' +
-			chalk.yellow('    - Channel Inject: ') +
-			chalk.cyan(customer.channelInject) +
+			chalk.cyan(quota) +
 			'\n',
 	)
 }
 
-export function logOrder(order: Order) {
+export function logOrder({ orderId, customer, product }: Order) {
 	console.log(chalk.blue('  Order Information:'))
 
 	console.log(
-		chalk.yellow('    - Nationality ID: ') +
-			chalk.cyan(order.nationalityId) +
+		chalk.yellow('    - Order ID: ') +
+			chalk.cyan(orderId) +
 			'\n' +
-			chalk.yellow('    - Quantity: ') +
-			chalk.cyan(order.quantity) +
+			chalk.yellow('    - Customer:') +
+			'\n' +
+			chalk.yellow('      - Nationality ID: ') +
+			chalk.cyan(customer.nationalityId) +
+			'\n' +
+			chalk.yellow('      - Name: ') +
+			chalk.cyan(customer.name) +
+			'\n' +
+			chalk.yellow('      - Quota: ') +
+			chalk.cyan(customer.quota) +
+			'\n' +
+			chalk.yellow('    - Product:') +
+			'\n' +
+			chalk.yellow('      - Product ID: ') +
+			chalk.cyan(product.id) +
+			'\n' +
+			chalk.yellow('      - Quantity: ') +
+			chalk.cyan(product.quantity) +
 			'\n',
 	)
 }

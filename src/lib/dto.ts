@@ -5,9 +5,17 @@ import {
 	LoginResponse,
 	ProductsResponse,
 	ProfileResponse,
+	TransactionResponse,
 	VerifyNationalityIdResponse,
 } from './responses'
-import { Auth, Customer, Person, Product, Profile } from './types'
+import {
+	Auth,
+	Customer,
+	CustomerType,
+	Product,
+	Profile,
+	Transaction,
+} from './types'
 
 export function authDTO({ data }: LoginResponse, cookies: Cookie[]): Auth {
 	return {
@@ -36,27 +44,13 @@ export function revertAuthDTO(auth: Auth): LoginData {
 
 export function customerDTO(
 	{ data }: VerifyNationalityIdResponse,
-	nationalityId: Person['nationalityId'],
+	nationalityId: string,
 ): Customer {
 	return {
-		person: {
-			nationalityId,
-			familyId: data.familyId,
-			name: data.name,
-			email: data.email,
-			phoneNumber: data.phoneNumber,
-		},
-		quotaRemaining: {
-			thisMonth: data.quotaRemaining,
-			lastMonth: data.quotaRemainingLastMonth,
-		},
-		customerTypes: data.customerTypes,
-		channelInject: data.channelInject,
-		flags: {
-			isAgreedTermsConditions: data.isAgreedTermsConditions,
-			isCompleted: data.isCompleted,
-			isSubsidy: data.isSubsidi,
-		},
+		nationalityId: nationalityId,
+		name: data.name,
+		quota: data.quotaRemaining.parent,
+		types: data.customerTypes.map((type) => type.name as CustomerType),
 	}
 }
 
@@ -77,25 +71,7 @@ export function profileDTO({ data }: ProfileResponse): Profile {
 			zipCode: data.zipcode,
 			coordinate: data.coordinate,
 		},
-		store: {
-			registrationId: data.registrationId,
-			name: data.storeName,
-			phoneNumber: data.phoneNumber,
-			address: data.storeAddress,
-		},
-		tid: data.tid,
-		mid: data.mid,
-		spbu: data.spbu,
-		merchantType: data.merchantType,
-		midMap: data.mid,
 		agent: data.agen,
-		bank: data.bank,
-		activationStatus: data.myptmActivationStatus,
-		flags: {
-			isSubsidyProduct: data.isSubsidiProduct,
-			isActive: data.isActiveMyptm,
-			isAvailableTransaction: data.isAvailableTransaction,
-		},
 	}
 }
 
@@ -103,23 +79,16 @@ export function productDTO({ data }: ProductsResponse): Product {
 	return {
 		id: data.productId,
 		name: data.productName,
-		image: data.image,
-		minPrice: data.productMinPrice,
-		maxPrice: data.productMaxPrice,
-		store: {
-			registrationId: data.registrationId,
-			name: data.storeName,
-			sold: data.sold,
-			modal: data.modal,
-			price: data.price,
-		},
 		stock: {
 			available: data.stockAvailable,
 			redeem: data.stockRedeem,
-			date: data.stockDate,
-			last: data.lastStock,
-			lastDate: data.lastStockDate,
-			lastSyncAt: data.lastSyncAt,
 		},
+	}
+}
+
+export function transactionDTO({ data }: TransactionResponse): Transaction {
+	return {
+		id: data.transactionId,
+		key: data.transactionUniqKey,
 	}
 }

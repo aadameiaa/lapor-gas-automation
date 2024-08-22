@@ -1,5 +1,3 @@
-import { Customer, Order } from './types'
-
 export async function delay(duration: number) {
 	return new Promise((resolve) => setTimeout(resolve, duration))
 }
@@ -15,15 +13,4 @@ export function rupiah(value: number): string {
 	})
 		.format(value)
 		.slice(0, -3)
-}
-
-export function isValidOrderQuantity(
-	{ quantity }: Order,
-	customer: Customer,
-): boolean {
-	return (
-		quantity >= 1 &&
-		quantity <= 20 &&
-		quantity <= customer.quotaRemaining.thisMonth.parent
-	)
 }

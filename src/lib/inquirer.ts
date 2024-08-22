@@ -19,7 +19,7 @@ import {
 	logout,
 	verifyCustomer,
 } from './my-pertamina'
-import { Auth, TaskType } from './types'
+import { Auth, CustomerType, TaskType } from './types'
 
 export async function askForTask(): Promise<TaskType> {
 	return await select<TaskType>({
@@ -37,12 +37,12 @@ export async function askForTask(): Promise<TaskType> {
 			},
 			{
 				name: 'View Profile',
-				value: 'VIEW_PROFILE',
+				value: 'GET_PROFILE',
 				description: 'View the profile of the logged-in user',
 			},
 			{
 				name: 'Check Product Stock',
-				value: 'CHECK_PRODUCT_STOCK',
+				value: 'GET_PRODUCT',
 				description: 'View the current stock of available products',
 			},
 			{
@@ -51,19 +51,9 @@ export async function askForTask(): Promise<TaskType> {
 				description: 'Verify a specific customer by nationality ID',
 			},
 			{
-				name: 'Verify Multiple Customers',
-				value: 'VERIFY_CUSTOMERS',
-				description: 'Verify a list of customers by nationality IDs',
-			},
-			{
 				name: 'Create an Order',
-				value: 'CREATE_ORDER',
+				value: 'ADD_ORDER',
 				description: 'Create a new order for a customer',
-			},
-			{
-				name: 'Create Multiple Orders',
-				value: 'CREATE_ORDERS',
-				description: 'Create multiple orders for different customers',
 			},
 			{
 				name: 'Exit',
@@ -129,15 +119,26 @@ export async function askForOrderQuantity(): Promise<number> {
 	})) as number
 }
 
-async function processLoginTask(page: Page) {
+export async function askForCustomerType(): Promise<CustomerType> {
+	return await select<CustomerType>({
+		message: 'Select the customer type:',
+		choices: [
+			{ name: 'Rumah Tangga', value: 'Rumah Tangga' },
+			{ name: 'Usaha Mikro', value: 'Usaha Mikro' },
+		],
+		default: 'Rumah Tangga',
+	})
+}
+
+async function loginTask(page: Page) {
 	const phoneNumber = await askForPhoneNumber()
 	const pin = await askForPin()
 
 	const spinner = createSpinner('Processing login task').start()
-	const data = await login(page, phoneNumber, pin)
-	if (typeof data === 'number') {
+	const loginData = await login(page, { phoneNumber, pin })
+	if (loginData instanceof Error) {
 		spinner.error({
-			text: chalk.red.bold(`Login failed with status code: ${data}\n`),
+			text: chalk.red.bold(loginData.message + '\n'),
 		})
 
 		return true
@@ -147,26 +148,25 @@ async function processLoginTask(page: Page) {
 		text: chalk.green.bold('🎉 Login Successful! 🎉\n'),
 	})
 
-	logAuth(data)
+	logAuth(loginData)
 	mkdirSync('public/data', { recursive: true })
-	writeFileSync('public/data/auth.json', JSON.stringify(data), {
+	writeFileSync('public/data/auth.json', JSON.stringify(loginData), {
 		encoding: 'utf-8',
 	})
 
 	return true
 }
 
-async function processLogoutTask(page: Page) {
+async function logoutTask(page: Page) {
 	const auth = JSON.parse(
 		readFileSync('public/data/auth.json', { encoding: 'utf-8' }),
 	)
 
 	const spinner = createSpinner('Processing logout task').start()
-	const data = await logout(page, auth)
-
-	if (typeof data === 'number') {
+	const logoutData = await logout(page, auth)
+	if (logoutData instanceof Error) {
 		spinner.error({
-			text: chalk.red.bold(`Logout failed with status code: ${data}\n`),
+			text: chalk.red.bold(logoutData.message + '\n'),
 		})
 
 		return true
@@ -187,16 +187,15 @@ async function processLogoutTask(page: Page) {
 	return true
 }
 
-async function processViewProfileTask(page: Page) {
+async function getProfileTask(page: Page) {
 	const auth = JSON.parse(
 		readFileSync('public/data/auth.json', { encoding: 'utf-8' }),
 	) as Auth
 	const spinner = createSpinner('Processing view profile task').start()
-	const data = await getProfile(page, auth)
-
-	if (typeof data === 'number') {
+	const profileData = await getProfile(page, auth)
+	if (profileData instanceof Error) {
 		spinner.error({
-			text: chalk.red.bold(`View profile failed with status code: ${data}`),
+			text: chalk.red.bold(profileData.message + '\n'),
 		})
 
 		return true
@@ -206,23 +205,20 @@ async function processViewProfileTask(page: Page) {
 		text: chalk.green.bold('🎉 View profile Successful! 🎉\n'),
 	})
 
-	logProfile(data)
+	logProfile(profileData)
 
 	return true
 }
 
-async function processCheckProductStock(page: Page) {
+async function getProductTask(page: Page) {
 	const auth = JSON.parse(
 		readFileSync('public/data/auth.json', { encoding: 'utf-8' }),
 	) as Auth
 	const spinner = createSpinner('Processing check product stock task').start()
-	const data = await getProduct(page, auth)
-
-	if (typeof data === 'number') {
+	const productData = await getProduct(page, auth)
+	if (productData instanceof Error) {
 		spinner.error({
-			text: chalk.red.bold(
-				`Check product stock failed with status code: ${data}\n`,
-			),
+			text: chalk.red.bold(productData.message + '\n'),
 		})
 
 		return true
@@ -232,25 +228,22 @@ async function processCheckProductStock(page: Page) {
 		text: chalk.green.bold('🎉 View profile Successful! 🎉\n'),
 	})
 
-	logProduct(data)
+	logProduct(productData)
 
 	return true
 }
 
-async function processVerifyCustomerTask(page: Page) {
+async function verifyCustomerTask(page: Page) {
 	const nationalityId = await askForNationalityId()
 
 	const auth = JSON.parse(
 		readFileSync('public/data/auth.json', { encoding: 'utf-8' }),
 	) as Auth
 	const spinner = createSpinner('Processing verify customer task').start()
-	const data = await verifyCustomer(page, auth, nationalityId)
-
-	if (typeof data === 'number') {
+	const customerData = await verifyCustomer(page, auth, nationalityId)
+	if (customerData instanceof Error) {
 		spinner.error({
-			text: chalk.red.bold(
-				`Verify customer failed with status code: ${data}\n`,
-			),
+			text: chalk.red.bold(customerData.message + '\n'),
 		})
 
 		return true
@@ -260,24 +253,28 @@ async function processVerifyCustomerTask(page: Page) {
 		text: chalk.green.bold('🎉 Verify customer Successful! 🎉\n'),
 	})
 
-	logCustomer(data)
+	logCustomer(customerData)
 
 	return true
 }
 
-async function processAddOrderTask(page: Page) {
+async function addOrderTask(page: Page) {
 	const nationalityId = await askForNationalityId()
 	const quantity = await askForOrderQuantity()
+	const selectedCustomerType = await askForCustomerType()
 
 	const auth = JSON.parse(
 		readFileSync('public/data/auth.json', { encoding: 'utf-8' }),
 	) as Auth
 	const spinner = createSpinner('Processing add order task').start()
-	const data = await addOrder(page, auth, { nationalityId, quantity })
-
-	if (typeof data === 'number') {
+	const orderData = await addOrder(page, auth, {
+		nationalityId,
+		selectedCustomerType,
+		quantity,
+	})
+	if (orderData instanceof Error) {
 		spinner.error({
-			text: chalk.red.bold(`Add order failed with status code: ${data}\n`),
+			text: chalk.red.bold(orderData.message + '\n'),
 		})
 
 		return true
@@ -287,12 +284,12 @@ async function processAddOrderTask(page: Page) {
 		text: chalk.green.bold('🎉 Add order Successful! 🎉\n'),
 	})
 
-	logOrder(data)
+	logOrder(orderData)
 
 	return true
 }
 
-async function processExitTask() {
+async function exitTask() {
 	console.log(
 		chalk.green.bold('  Thank you for using LPG Gas Automation CLI! 🙏'),
 	)
@@ -308,23 +305,19 @@ export async function processTask(
 ): Promise<boolean> {
 	switch (task) {
 		case 'LOGIN':
-			return await processLoginTask(page)
+			return await loginTask(page)
 		case 'LOGOUT':
-			return await processLogoutTask(page)
-		case 'VIEW_PROFILE':
-			return await processViewProfileTask(page)
-		case 'CHECK_PRODUCT_STOCK':
-			return await processCheckProductStock(page)
+			return await logoutTask(page)
+		case 'GET_PROFILE':
+			return await getProfileTask(page)
+		case 'GET_PRODUCT':
+			return await getProductTask(page)
 		case 'VERIFY_CUSTOMER':
-			return await processVerifyCustomerTask(page)
-		case 'VERIFY_CUSTOMERS':
-			return true
-		case 'CREATE_ORDER':
-			return await processAddOrderTask(page)
-		case 'CREATE_ORDERS':
-			return true
+			return await verifyCustomerTask(page)
+		case 'ADD_ORDER':
+			return await addOrderTask(page)
 		case 'EXIT':
-			return await processExitTask()
+			return await exitTask()
 		default:
 			return false
 	}

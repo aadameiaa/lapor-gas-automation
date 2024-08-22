@@ -114,8 +114,14 @@ export type ProductData = {
 	lastSyncAt: string
 }
 
+export type TransactionData = {
+	transactionId: string
+	transactionUniqKey: string
+}
+
 export type LoginResponse = SuccessResponse<LoginData>
 export type VerifyNationalityIdResponse =
 	SuccessResponse<VerifyNationalityIdData>
 export type ProfileResponse = SuccessResponse<ProfileData>
 export type ProductsResponse = SuccessResponse<ProductData>
+export type TransactionResponse = SuccessResponse<TransactionData>

@@ -15,18 +15,21 @@ export const PROFILE_ENDPOINT =
 	'https://api-map.my-pertamina.id/general/v1/users/profile'
 export const PRODUCTS_ENDPOINT =
 	'https://api-map.my-pertamina.id/general/v2/products'
+export const TRANSACTIONS_ENDPOINT =
+	'https://api-map.my-pertamina.id/general/v1/transactions'
 
+export const PRODUCT_ID = 'e2f29f10-686e-4140-9c92-4d2103357544'
+export const PRODUCT_NAME = 'LPG 3 Kg'
 export const USER_DATA_LOCAL_STORAGE_KEY = 'maplite_user_data'
 export const MY_PERTAMINA_DELAY = 60 * 1000
 
 export const TASK_TYPES = [
 	'LOGIN',
 	'LOGOUT',
-	'VIEW_PROFILE',
-	'CHECK_PRODUCT_STOCK',
+	'GET_PROFILE',
+	'GET_PRODUCT',
 	'VERIFY_CUSTOMER',
-	'VERIFY_CUSTOMERS',
-	'CREATE_ORDER',
-	'CREATE_ORDERS',
+	'ADD_ORDER',
 	'EXIT',
 ] as const
+export const CUSTOMER_TYPES = ['Rumah Tangga', 'Usaha Mikro'] as const
