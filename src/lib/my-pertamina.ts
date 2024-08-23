@@ -1,5 +1,5 @@
 import { StatusCodes } from 'http-status-codes'
-import { GoToOptions, HTTPResponse, Page } from 'puppeteer'
+import { GoToOptions, Page } from 'puppeteer'
 
 import { AddOrderArgs, LoginArgs } from './args'
 import {
@@ -22,7 +22,15 @@ import {
 	profileDTO,
 	transactionDTO,
 } from './dto'
-import { Auth, Customer, CustomerType, Order, Product, Profile } from './types'
+import {
+	Auth,
+	Customer,
+	CustomerType,
+	Order,
+	Product,
+	Profile,
+	Transaction,
+} from './types'
 
 async function navigateToLoginPage(
 	page: Page,
@@ -47,10 +55,21 @@ async function setupAuth(page: Page, auth: Auth) {
 	)
 }
 
-function checkCookieExpiration(page: Page, url: string): null | StatusCodes {
+function handleCookieError(statusCode?: StatusCodes) {
+	switch (statusCode) {
+		case StatusCodes.UNAUTHORIZED:
+			return 'Your session has expired. Please log in again.'
+		default:
+			return 'An unexpected error occurred. Please try again later.'
+	}
+}
+
+function checkCookieExpiration(page: Page, url: string) {
 	const isRedirected = page.url() !== url
 
-	return isRedirected ? StatusCodes.UNAUTHORIZED : null
+	if (isRedirected) {
+		throw new Error(handleCookieError(StatusCodes.UNAUTHORIZED))
+	}
 }
 
 async function fillLoginForm(page: Page, phoneNumber: string, pin: string) {
@@ -60,14 +79,24 @@ async function fillLoginForm(page: Page, phoneNumber: string, pin: string) {
 	await page.locator('input[placeholder="PIN (6-digit)"]').fill(pin)
 }
 
-async function submitLoginForm(page: Page): Promise<HTTPResponse> {
+async function submitLoginForm(page: Page): Promise<Auth> {
 	await page.locator('button[type="submit"]').click()
 
-	return await page.waitForResponse(
+	const response = await page.waitForResponse(
 		(response) =>
 			response.url() === LOGIN_ENDPOINT &&
 			response.request().method() !== 'OPTIONS',
 	)
+
+	if (!response.ok()) {
+		throw new Error(handleLoginError(response.status()))
+	}
+
+	const body = await response.json()
+	const cookies = await page.cookies()
+	const auth = authDTO(body, cookies)
+
+	return auth
 }
 
 function handleLoginError(statusCode?: StatusCodes): string {
@@ -87,14 +116,7 @@ export async function login(
 	try {
 		await navigateToLoginPage(page)
 		await fillLoginForm(page, phoneNumber, pin)
-		const response = await submitLoginForm(page)
-		if (!response.ok()) {
-			throw new Error(handleLoginError(response.status()))
-		}
-
-		const body = await response.json()
-		const cookies = await page.cookies()
-		const auth = authDTO(body, cookies)
+		const auth = await submitLoginForm(page)
 
 		return auth
 	} catch (error) {
@@ -116,24 +138,12 @@ async function performLogout(page: Page) {
 	await page.locator('button[data-testid="btnLogout"][type="button"]').click()
 }
 
-function handleLogoutError(statusCode?: StatusCodes) {
-	switch (statusCode) {
-		case StatusCodes.UNAUTHORIZED:
-			return 'Your session has expired. Please log in again.'
-		default:
-			return 'An unexpected error occurred. Please try again later.'
-	}
-}
-
 export async function logout(page: Page, auth: Auth): Promise<null | Error> {
 	try {
 		await setupAuth(page, auth)
 		await navigateToVerifyCustomerPage(page)
 
-		const cookieStatus = checkCookieExpiration(page, VERIFY_CUSTOMER_URL)
-		if (cookieStatus !== null) {
-			throw new Error(handleLogoutError(cookieStatus))
-		}
+		checkCookieExpiration(page, VERIFY_CUSTOMER_URL)
 
 		await performLogout(page)
 
@@ -143,12 +153,21 @@ export async function logout(page: Page, auth: Auth): Promise<null | Error> {
 	}
 }
 
-async function fetchProfile(page: Page): Promise<HTTPResponse> {
-	return await page.waitForResponse(
+async function fetchProfile(page: Page): Promise<Profile> {
+	const response = await page.waitForResponse(
 		(response) =>
 			response.url() === PROFILE_ENDPOINT &&
 			response.request().method() !== 'OPTIONS',
 	)
+
+	if (!response.ok()) {
+		throw new Error(handleGetProfileError(response.status()))
+	}
+
+	const body = await response.json()
+	const profile = profileDTO(body)
+
+	return profile
 }
 
 function handleGetProfileError(statusCode?: StatusCodes): string {
@@ -168,18 +187,9 @@ export async function getProfile(
 		await setupAuth(page, auth)
 		await navigateToVerifyCustomerPage(page, { waitUntil: 'load' })
 
-		const cookieStatus = checkCookieExpiration(page, VERIFY_CUSTOMER_URL)
-		if (cookieStatus !== null) {
-			throw new Error(handleGetProfileError(cookieStatus))
-		}
+		checkCookieExpiration(page, VERIFY_CUSTOMER_URL)
 
-		const response = await fetchProfile(page)
-		if (!response.ok()) {
-			throw new Error(handleGetProfileError(response.status()))
-		}
-
-		const body = await response.json()
-		const profile = profileDTO(body)
+		const profile = await fetchProfile(page)
 
 		return profile
 	} catch (error) {
@@ -194,12 +204,21 @@ async function navigateToManageProductPage(
 	await page.goto(MANAGE_PRODUCT_URL, { waitUntil: options.waitUntil })
 }
 
-async function fetchProduct(page: Page): Promise<HTTPResponse> {
-	return await page.waitForResponse(
+async function fetchProduct(page: Page): Promise<Product> {
+	const response = await page.waitForResponse(
 		(response) =>
 			response.url() === PRODUCTS_ENDPOINT &&
 			response.request().method() !== 'OPTIONS',
 	)
+
+	if (!response.ok()) {
+		throw new Error(handleGetProductError(response.status()))
+	}
+
+	const body = await response.json()
+	const product = productDTO(body)
+
+	return product
 }
 
 function handleGetProductError(statusCode?: StatusCodes): string {
@@ -219,18 +238,9 @@ export async function getProduct(
 		await setupAuth(page, auth)
 		await navigateToManageProductPage(page, { waitUntil: 'load' })
 
-		const cookieStatus = checkCookieExpiration(page, MANAGE_PRODUCT_URL)
-		if (cookieStatus !== null) {
-			throw new Error(handleGetProductError(cookieStatus))
-		}
+		checkCookieExpiration(page, MANAGE_PRODUCT_URL)
 
-		const response = await fetchProduct(page)
-		if (!response.ok()) {
-			throw new Error(handleGetProductError(response.status()))
-		}
-
-		const body = await response.json()
-		const product = productDTO(body)
+		const product = await fetchProduct(page)
 
 		return product
 	} catch (error) {
@@ -249,15 +259,24 @@ async function fillVerifyNationalityIdForm(page: Page, nationalityId: string) {
 async function submitVerifyNationalityIdForm(
 	page: Page,
 	nationalityId: string,
-): Promise<HTTPResponse> {
+): Promise<Customer> {
 	await page.locator('button[data-testid="btnCheckNik"][type="submit"]').click()
 
-	return await page.waitForResponse(
+	const response = await page.waitForResponse(
 		(response) =>
 			response.url() ===
 				`${VERIFY_CUSTOMER_ENDPOINT}?nationalityId=${nationalityId}` &&
 			response.request().method() !== 'OPTIONS',
 	)
+
+	if (!response.ok()) {
+		throw new Error(handleVerifyCustomerError(response.status()))
+	}
+
+	const body = await response.json()
+	const customer = customerDTO(body, nationalityId)
+
+	return customer
 }
 
 function handleVerifyCustomerError(statusCode?: StatusCodes): string {
@@ -284,19 +303,10 @@ export async function verifyCustomer(
 		await setupAuth(page, auth)
 		await navigateToVerifyCustomerPage(page)
 
-		const cookieStatus = checkCookieExpiration(page, VERIFY_CUSTOMER_URL)
-		if (cookieStatus !== null) {
-			throw new Error(handleVerifyCustomerError(cookieStatus))
-		}
+		checkCookieExpiration(page, VERIFY_CUSTOMER_URL)
 
 		await fillVerifyNationalityIdForm(page, nationalityId)
-		const response = await submitVerifyNationalityIdForm(page, nationalityId)
-		if (!response.ok()) {
-			throw new Error(handleVerifyCustomerError(response.status()))
-		}
-
-		const body = await response.json()
-		const customer = customerDTO(body, nationalityId)
+		const customer = await submitVerifyNationalityIdForm(page, nationalityId)
 
 		return customer
 	} catch (error) {
@@ -307,12 +317,13 @@ export async function verifyCustomer(
 async function handleCustomerTypeSelection(
 	page: Page,
 	customerTypes: CustomerType[],
-	selectedCustomerType: CustomerType,
+	selectedCustomerType?: CustomerType,
 ) {
 	if (customerTypes.length === 2) {
 		await page
 			.locator(`input[type="radio"][value="${selectedCustomerType}"]`)
 			.click()
+		await page.locator('button[data-testid="btnContinueTrx"]').click()
 	}
 }
 
@@ -320,7 +331,15 @@ function isValidOrderQuantity(quantity: number, quota: number): boolean {
 	return quantity >= 1 && quantity <= 20 && quantity <= quota
 }
 
-async function adjustOrderQuantity(page: Page, quantity: number) {
+async function adjustOrderQuantity(
+	page: Page,
+	quantity: number,
+	quota: number,
+) {
+	if (!isValidOrderQuantity(quantity, quota)) {
+		throw new Error(handleAddOrderError(StatusCodes.BAD_REQUEST))
+	}
+
 	quantity > 1 &&
 		(await page
 			.locator('button[data-testid="actionIcon2"]')
@@ -329,17 +348,26 @@ async function adjustOrderQuantity(page: Page, quantity: number) {
 
 async function confirmOrder(page: Page) {
 	await page.locator('button[data-testid="btnCheckOrder"]').click()
-	await page.waitForNavigation({ waitUntil: 'networkidle0' })
+	await page.waitForNavigation({ waitUntil: 'domcontentloaded' })
 }
 
-async function submitAddOrderForm(page: Page): Promise<HTTPResponse> {
+async function submitAddOrderForm(page: Page): Promise<Transaction> {
 	await page.locator('button[data-testid="btnPay"]').click()
 
-	return await page.waitForResponse(
+	const response = await page.waitForResponse(
 		(response) =>
 			response.url() === TRANSACTIONS_ENDPOINT &&
 			response.request().method() !== 'OPTIONS',
 	)
+
+	if (!response.ok()) {
+		throw new Error(handleAddOrderError(response.status()))
+	}
+
+	const body = await response.json()
+	const transaction = transactionDTO(body)
+
+	return transaction
 }
 
 function handleAddOrderError(statusCode?: StatusCodes): string {
@@ -357,42 +385,25 @@ function handleAddOrderError(statusCode?: StatusCodes): string {
 
 export async function addOrder(
 	page: Page,
-	auth: Auth,
-	{ nationalityId, selectedCustomerType, quantity }: AddOrderArgs,
+	{ customer, quantity, selectedCustomerType }: AddOrderArgs,
 ): Promise<Order | Error> {
 	try {
-		const customerData = await verifyCustomer(page, auth, nationalityId)
-		if (customerData instanceof Error) {
-			return customerData
-		}
-
 		await handleCustomerTypeSelection(
 			page,
-			customerData.types,
+			customer.types,
 			selectedCustomerType,
 		)
-		await page.waitForNavigation({ waitUntil: 'networkidle0' })
 
-		if (!isValidOrderQuantity(quantity, customerData.quota)) {
-			throw new Error(handleAddOrderError(StatusCodes.BAD_REQUEST))
-		}
-
-		await adjustOrderQuantity(page, quantity)
+		await adjustOrderQuantity(page, quantity, customer.quota)
 		await confirmOrder(page)
-		const response = await submitAddOrderForm(page)
-		if (!response.ok()) {
-			throw new Error(handleAddOrderError(response.status()))
-		}
-
-		const body = await response.json()
-		const transaction = transactionDTO(body)
+		const transaction = await submitAddOrderForm(page)
 
 		const order: Order = {
 			orderId: transaction.id,
 			customer: {
-				nationalityId: customerData.nationalityId,
-				name: customerData.name,
-				quota: customerData.quota,
+				nationalityId: customer.nationalityId,
+				name: customer.name,
+				quota: customer.quota - quantity,
 			},
 			product: {
 				id: PRODUCT_ID,

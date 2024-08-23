@@ -260,17 +260,38 @@ async function verifyCustomerTask(page: Page) {
 
 async function addOrderTask(page: Page) {
 	const nationalityId = await askForNationalityId()
-	const quantity = await askForOrderQuantity()
-	const selectedCustomerType = await askForCustomerType()
 
 	const auth = JSON.parse(
 		readFileSync('public/data/auth.json', { encoding: 'utf-8' }),
 	) as Auth
-	const spinner = createSpinner('Processing add order task').start()
-	const orderData = await addOrder(page, auth, {
-		nationalityId,
-		selectedCustomerType,
+	const spinner = createSpinner('Processing verify customer task').start()
+	const customerData = await verifyCustomer(page, auth, nationalityId)
+	if (customerData instanceof Error) {
+		spinner.error({
+			text: chalk.red.bold(customerData.message + '\n'),
+		})
+
+		return true
+	}
+
+	spinner.success({
+		text: chalk.green.bold('🎉 Verify customer Successful! 🎉\n'),
+	})
+
+	logCustomer(customerData)
+
+	const quantity = await askForOrderQuantity()
+	let selectedCustomerType: CustomerType | undefined
+	if (customerData.types.length === 2) {
+		selectedCustomerType = await askForCustomerType()
+	}
+
+	spinner.start({ text: 'Processing add order task' })
+
+	const orderData = await addOrder(page, {
+		customer: customerData,
 		quantity,
+		selectedCustomerType,
 	})
 	if (orderData instanceof Error) {
 		spinner.error({

@@ -1,4 +1,4 @@
-import { CustomerType } from './types'
+import { Customer, CustomerType } from './types'
 
 export type LoginArgs = {
 	phoneNumber: string
@@ -6,7 +6,7 @@ export type LoginArgs = {
 }
 
 export type AddOrderArgs = {
-	nationalityId: string
-	selectedCustomerType: CustomerType
+	customer: Customer
 	quantity: number
+	selectedCustomerType?: CustomerType
 }
