@@ -8,14 +8,7 @@ import {
 	TransactionResponse,
 	VerifyNationalityIdResponse,
 } from './responses'
-import {
-	Auth,
-	Customer,
-	CustomerType,
-	Product,
-	Profile,
-	Transaction,
-} from './types'
+import { Auth, Customer, CustomerType, Order, Product, Profile } from './types'
 
 export function authDTO({ data }: LoginResponse, cookies: Cookie[]): Auth {
 	return {
@@ -86,9 +79,24 @@ export function productDTO({ data }: ProductsResponse): Product {
 	}
 }
 
-export function transactionDTO({ data }: TransactionResponse): Transaction {
+export function orderDTO(
+	{ data }: TransactionResponse,
+	payload: any,
+	quota: number,
+): Order {
+	const [product] = payload.products
+	const { productId, quantity } = product
+
 	return {
 		id: data.transactionId,
-		key: data.transactionUniqKey,
+		customer: {
+			nationalityId: payload.subsidi.nik,
+			name: payload.subsidi.nama,
+			quota: quota - quantity,
+		},
+		product: {
+			id: productId,
+			quantity,
+		},
 	}
 }

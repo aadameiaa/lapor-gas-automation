@@ -65,13 +65,8 @@ export type Product = {
 	stock: Stock
 }
 
-export type Transaction = {
-	id: string
-	key: string
-}
-
 export type Order = {
-	orderId: string
+	id: string
 	customer: {
 		nationalityId: string
 		name: string
@@ -79,7 +74,6 @@ export type Order = {
 	}
 	product: {
 		id: string
-		name: string
 		quantity: number
 	}
 }

@@ -10,3 +10,7 @@ export type AddOrderArgs = {
 	quantity: number
 	selectedCustomerType?: CustomerType
 }
+
+export type VerifyCustomersArgs = {
+	nationalityIds: string[]
+}

@@ -1,9 +1,13 @@
-import { input, number, password, select, Separator } from '@inquirer/prompts'
+import { input, password, select, Separator } from '@inquirer/prompts'
 import chalk from 'chalk'
 import { mkdirSync, readFileSync, unlinkSync, writeFileSync } from 'fs'
+import { StatusCodes } from 'http-status-codes'
 import { createSpinner } from 'nanospinner'
 import { Page } from 'puppeteer'
 
+import { CustomError } from '../models/custome-error'
+import { AddOrderArgs } from './args'
+import { MY_PERTAMINA_DELAY } from './constants'
 import {
 	logAuth,
 	logCustomer,
@@ -19,7 +23,8 @@ import {
 	logout,
 	verifyCustomer,
 } from './my-pertamina'
-import { Auth, CustomerType, TaskType } from './types'
+import { Auth, Customer, Order, TaskType } from './types'
+import { delay } from './utils'
 
 export async function askForTask(): Promise<TaskType> {
 	return await select<TaskType>({
@@ -46,14 +51,14 @@ export async function askForTask(): Promise<TaskType> {
 				description: 'View the current stock of available products',
 			},
 			{
-				name: 'Verify a Customer',
-				value: 'VERIFY_CUSTOMER',
-				description: 'Verify a specific customer by nationality ID',
+				name: 'Verify Customers',
+				value: 'VERIFY_CUSTOMERS',
+				description: 'Verify multiple customers by nationality IDs',
 			},
 			{
-				name: 'Create an Order',
-				value: 'ADD_ORDER',
-				description: 'Create a new order for a customer',
+				name: 'Create Orders',
+				value: 'ADD_ORDERS',
+				description: 'Create new orders for multiple customers',
 			},
 			{
 				name: 'Exit',
@@ -94,39 +99,37 @@ export async function askForPin(): Promise<string> {
 	})
 }
 
-export async function askForNationalityId(): Promise<string> {
+export async function askForNationalityIdsPath(): Promise<string> {
 	return await input({
-		message: 'Enter customer nationality ID:',
+		message:
+			'Enter the relative file path containing customer nationality IDs (must be a .json file):',
 		required: true,
 		validate: (value) => {
-			const nationalityIdRegex = /^\d{16}$/
+			const relativeJsonPathRegex =
+				/^(\.\/|(\.\.\/)*)([a-zA-Z0-9_\-\/]+\/?)*[a-zA-Z0-9_\-]+\.json$/
 
 			return (
-				nationalityIdRegex.test(value) ||
-				'Please enter customer nationality ID as a 16-digit number.'
+				relativeJsonPathRegex.test(value) ||
+				'Please enter a valid relative file path with a .json extension (e.g., ./folder/data.json or ../data.json).'
 			)
 		},
 	})
 }
 
-export async function askForOrderQuantity(): Promise<number> {
-	return (await number({
-		message: 'Enter order quantity for LPG 3 kg:',
+export async function askForAddOrdersArgsPath(): Promise<string> {
+	return await input({
+		message:
+			'Enter the relative file path containing orders (must be a .json file):',
 		required: true,
-		default: 1,
-		min: 1,
-		max: 20,
-	})) as number
-}
+		validate: (value) => {
+			const relativeJsonPathRegex =
+				/^(\.\/|(\.\.\/)*)([a-zA-Z0-9_\-\/]+\/?)*[a-zA-Z0-9_\-]+\.json$/
 
-export async function askForCustomerType(): Promise<CustomerType> {
-	return await select<CustomerType>({
-		message: 'Select the customer type:',
-		choices: [
-			{ name: 'Rumah Tangga', value: 'Rumah Tangga' },
-			{ name: 'Usaha Mikro', value: 'Usaha Mikro' },
-		],
-		default: 'Rumah Tangga',
+			return (
+				relativeJsonPathRegex.test(value) ||
+				'Please enter a valid relative file path with a .json extension (e.g., ./folder/data.json or ../data.json).'
+			)
+		},
 	})
 }
 
@@ -136,7 +139,7 @@ async function loginTask(page: Page) {
 
 	const spinner = createSpinner('Processing login task').start()
 	const loginData = await login(page, { phoneNumber, pin })
-	if (loginData instanceof Error) {
+	if (loginData instanceof CustomError) {
 		spinner.error({
 			text: chalk.red.bold(loginData.message + '\n'),
 		})
@@ -150,7 +153,7 @@ async function loginTask(page: Page) {
 
 	logAuth(loginData)
 	mkdirSync('public/data', { recursive: true })
-	writeFileSync('public/data/auth.json', JSON.stringify(loginData), {
+	writeFileSync('public/data/auth.json', JSON.stringify(loginData, null, 2), {
 		encoding: 'utf-8',
 	})
 
@@ -158,13 +161,11 @@ async function loginTask(page: Page) {
 }
 
 async function logoutTask(page: Page) {
-	const auth = JSON.parse(
-		readFileSync('public/data/auth.json', { encoding: 'utf-8' }),
-	)
-
+	const authFile = readFileSync('public/data/auth.json', { encoding: 'utf-8' })
+	const auth = JSON.parse(authFile) as Auth
 	const spinner = createSpinner('Processing logout task').start()
 	const logoutData = await logout(page, auth)
-	if (logoutData instanceof Error) {
+	if (logoutData instanceof CustomError) {
 		spinner.error({
 			text: chalk.red.bold(logoutData.message + '\n'),
 		})
@@ -188,12 +189,11 @@ async function logoutTask(page: Page) {
 }
 
 async function getProfileTask(page: Page) {
-	const auth = JSON.parse(
-		readFileSync('public/data/auth.json', { encoding: 'utf-8' }),
-	) as Auth
+	const authFile = readFileSync('public/data/auth.json', { encoding: 'utf-8' })
+	const auth = JSON.parse(authFile) as Auth
 	const spinner = createSpinner('Processing view profile task').start()
 	const profileData = await getProfile(page, auth)
-	if (profileData instanceof Error) {
+	if (profileData instanceof CustomError) {
 		spinner.error({
 			text: chalk.red.bold(profileData.message + '\n'),
 		})
@@ -211,12 +211,11 @@ async function getProfileTask(page: Page) {
 }
 
 async function getProductTask(page: Page) {
-	const auth = JSON.parse(
-		readFileSync('public/data/auth.json', { encoding: 'utf-8' }),
-	) as Auth
+	const authFile = readFileSync('public/data/auth.json', { encoding: 'utf-8' })
+	const auth = JSON.parse(authFile) as Auth
 	const spinner = createSpinner('Processing check product stock task').start()
 	const productData = await getProduct(page, auth)
-	if (productData instanceof Error) {
+	if (productData instanceof CustomError) {
 		spinner.error({
 			text: chalk.red.bold(productData.message + '\n'),
 		})
@@ -233,79 +232,100 @@ async function getProductTask(page: Page) {
 	return true
 }
 
-async function verifyCustomerTask(page: Page) {
-	const nationalityId = await askForNationalityId()
+async function verifyCustomersTask(page: Page) {
+	const nationalityIdsPath = await askForNationalityIdsPath()
+	const nationalityIdsFile = readFileSync(nationalityIdsPath, {
+		encoding: 'utf-8',
+	})
+	const nationalityIds = JSON.parse(nationalityIdsFile) as string[]
 
-	const auth = JSON.parse(
-		readFileSync('public/data/auth.json', { encoding: 'utf-8' }),
-	) as Auth
-	const spinner = createSpinner('Processing verify customer task').start()
-	const customerData = await verifyCustomer(page, auth, nationalityId)
-	if (customerData instanceof Error) {
-		spinner.error({
-			text: chalk.red.bold(customerData.message + '\n'),
+	let customers: Customer[] = []
+	for (let index = 0; index < nationalityIds.length; index++) {
+		const nationalityId = nationalityIds[index]
+
+		const authFile = readFileSync('public/data/auth.json', {
+			encoding: 'utf-8',
+		})
+		const auth = JSON.parse(authFile) as Auth
+		const spinner = createSpinner('Processing verify customer task').start()
+		const customerData = await verifyCustomer(page, auth, nationalityId)
+		if (customerData instanceof CustomError) {
+			spinner.error({
+				text: chalk.red.bold(customerData.message + '\n'),
+			})
+
+			if (customerData.statusCode === StatusCodes.TOO_MANY_REQUESTS) {
+				index--
+
+				await delay(MY_PERTAMINA_DELAY)
+			}
+
+			continue
+		}
+
+		spinner.success({
+			text: chalk.green.bold('🎉 Verify customer Successful! 🎉\n'),
 		})
 
-		return true
+		logCustomer(customerData)
+
+		customers = [...customers, customerData]
 	}
 
-	spinner.success({
-		text: chalk.green.bold('🎉 Verify customer Successful! 🎉\n'),
-	})
-
-	logCustomer(customerData)
+	writeFileSync(
+		'public/data/customers.json',
+		JSON.stringify(customers, null, 2),
+		{
+			encoding: 'utf-8',
+		},
+	)
 
 	return true
 }
 
-async function addOrderTask(page: Page) {
-	const nationalityId = await askForNationalityId()
+async function addOrdersTask(page: Page) {
+	const addOrdersArgsPath = await askForAddOrdersArgsPath()
+	const addOrdersArgsFile = readFileSync(addOrdersArgsPath, {
+		encoding: 'utf-8',
+	})
+	const addOrdersArgs = JSON.parse(addOrdersArgsFile) as AddOrderArgs[]
 
-	const auth = JSON.parse(
-		readFileSync('public/data/auth.json', { encoding: 'utf-8' }),
-	) as Auth
-	const spinner = createSpinner('Processing verify customer task').start()
-	const customerData = await verifyCustomer(page, auth, nationalityId)
-	if (customerData instanceof Error) {
-		spinner.error({
-			text: chalk.red.bold(customerData.message + '\n'),
+	let orders: Order[] = []
+	for (let index = 0; index < addOrdersArgs.length; index++) {
+		const addOrderArg = addOrdersArgs[index]
+
+		const authFile = readFileSync('public/data/auth.json', {
+			encoding: 'utf-8',
+		})
+		const auth = JSON.parse(authFile) as Auth
+		const spinner = createSpinner('Processing add order task').start()
+		const orderData = await addOrder(page, auth, addOrderArg)
+		if (orderData instanceof CustomError) {
+			spinner.error({
+				text: chalk.red.bold(orderData.message + '\n'),
+			})
+
+			if (orderData.statusCode === StatusCodes.TOO_MANY_REQUESTS) {
+				index--
+
+				await delay(MY_PERTAMINA_DELAY)
+			}
+
+			continue
+		}
+
+		spinner.success({
+			text: chalk.green.bold('🎉 Add order Successful! 🎉\n'),
 		})
 
-		return true
+		logOrder(orderData)
+
+		orders = [...orders, orderData]
 	}
 
-	spinner.success({
-		text: chalk.green.bold('🎉 Verify customer Successful! 🎉\n'),
+	writeFileSync('public/data/orders.json', JSON.stringify(orders, null, 2), {
+		encoding: 'utf-8',
 	})
-
-	logCustomer(customerData)
-
-	const quantity = await askForOrderQuantity()
-	let selectedCustomerType: CustomerType | undefined
-	if (customerData.types.length === 2) {
-		selectedCustomerType = await askForCustomerType()
-	}
-
-	spinner.start({ text: 'Processing add order task' })
-
-	const orderData = await addOrder(page, {
-		customer: customerData,
-		quantity,
-		selectedCustomerType,
-	})
-	if (orderData instanceof Error) {
-		spinner.error({
-			text: chalk.red.bold(orderData.message + '\n'),
-		})
-
-		return true
-	}
-
-	spinner.success({
-		text: chalk.green.bold('🎉 Add order Successful! 🎉\n'),
-	})
-
-	logOrder(orderData)
 
 	return true
 }
@@ -333,10 +353,10 @@ export async function processTask(
 			return await getProfileTask(page)
 		case 'GET_PRODUCT':
 			return await getProductTask(page)
-		case 'VERIFY_CUSTOMER':
-			return await verifyCustomerTask(page)
-		case 'ADD_ORDER':
-			return await addOrderTask(page)
+		case 'VERIFY_CUSTOMERS':
+			return await verifyCustomersTask(page)
+		case 'ADD_ORDERS':
+			return await addOrdersTask(page)
 		case 'EXIT':
 			return await exitTask()
 		default:

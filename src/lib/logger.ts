@@ -100,12 +100,12 @@ export function logCustomer({ nationalityId, name, types, quota }: Customer) {
 	)
 }
 
-export function logOrder({ orderId, customer, product }: Order) {
+export function logOrder({ id, customer, product }: Order) {
 	console.log(chalk.blue('  Order Information:'))
 
 	console.log(
 		chalk.yellow('    - Order ID: ') +
-			chalk.cyan(orderId) +
+			chalk.cyan(id) +
 			'\n' +
 			chalk.yellow('    - Customer:') +
 			'\n' +

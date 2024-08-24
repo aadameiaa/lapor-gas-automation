@@ -28,8 +28,12 @@ export const TASK_TYPES = [
 	'LOGOUT',
 	'GET_PROFILE',
 	'GET_PRODUCT',
-	'VERIFY_CUSTOMER',
-	'ADD_ORDER',
+	'VERIFY_CUSTOMERS',
+	'ADD_ORDERS',
 	'EXIT',
 ] as const
-export const CUSTOMER_TYPES = ['Rumah Tangga', 'Usaha Mikro'] as const
+export const CUSTOMER_TYPES = [
+	'Rumah Tangga',
+	'Usaha Mikro',
+	'Pengecer',
+] as const
