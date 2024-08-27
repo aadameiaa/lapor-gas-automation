@@ -1,5 +1,6 @@
 import { Cookie } from 'puppeteer'
 
+import { PRODUCT_ID, PRODUCT_NAME } from './constants'
 import {
 	LoginData,
 	LoginResponse,
@@ -81,21 +82,19 @@ export function productDTO({ data }: ProductsResponse): Product {
 
 export function orderDTO(
 	{ data }: TransactionResponse,
-	payload: any,
-	quota: number,
+	customer: Customer,
+	quantity: number,
 ): Order {
-	const [product] = payload.products
-	const { productId, quantity } = product
-
 	return {
 		id: data.transactionId,
 		customer: {
-			nationalityId: payload.subsidi.nik,
-			name: payload.subsidi.nama,
-			quota: quota - quantity,
+			nationalityId: customer.nationalityId,
+			name: customer.name,
+			quota: customer.quota - quantity,
 		},
 		product: {
-			id: productId,
+			id: PRODUCT_ID,
+			name: PRODUCT_NAME,
 			quantity,
 		},
 	}

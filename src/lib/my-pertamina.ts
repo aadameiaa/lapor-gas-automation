@@ -342,6 +342,7 @@ async function handleCustomerTypeSelection(
 	}
 
 	await page.waitForNavigation({ waitUntil: 'networkidle0' })
+	await page.waitForNetworkIdle()
 }
 
 function isValidOrderQuantity(quantity: number, quota: number): boolean {
@@ -368,9 +369,14 @@ async function adjustOrderQuantity(
 async function confirmOrder(page: Page) {
 	await page.locator('button[data-testid="btnCheckOrder"]').click()
 	await page.waitForNavigation({ waitUntil: 'networkidle0' })
+	await page.waitForNetworkIdle()
 }
 
-async function submitAddOrderForm(page: Page, quota: number): Promise<Order> {
+async function submitAddOrderForm(
+	page: Page,
+	customer: Customer,
+	quantity: number,
+): Promise<Order> {
 	await page.locator('button[data-testid="btnPay"]').click()
 
 	const response = await page.waitForResponse(
@@ -384,10 +390,8 @@ async function submitAddOrderForm(page: Page, quota: number): Promise<Order> {
 		throw new CustomError(handleAddOrderError(status), status)
 	}
 
-	const payloadJson = response.request().postData() as any
-	const payload = JSON.parse(payloadJson)
 	const body = await response.json()
-	const order = orderDTO(body, payload, quota)
+	const order = orderDTO(body, customer, quantity)
 
 	return order
 }
@@ -416,7 +420,7 @@ export async function addOrder(
 
 		await adjustOrderQuantity(page, quantity, customer.quota)
 		await confirmOrder(page)
-		const order = await submitAddOrderForm(page, customer.quota)
+		const order = await submitAddOrderForm(page, customer, quantity)
 
 		return order
 	} catch (error) {

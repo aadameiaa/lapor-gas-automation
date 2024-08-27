@@ -1,3 +1,5 @@
+import { readdirSync, statSync } from 'fs'
+
 export async function delay(duration: number) {
 	return new Promise((resolve) => setTimeout(resolve, duration))
 }
@@ -13,4 +15,20 @@ export function rupiah(value: number): string {
 	})
 		.format(value)
 		.slice(0, -3)
+}
+
+export function getFiles(dir: string, files: string[] = []): string[] {
+	const filesInDir = readdirSync(dir)
+
+	for (const file of filesInDir) {
+		const name = `${dir}/${file}`
+
+		if (statSync(name).isDirectory()) {
+			getFiles(name, files)
+		} else {
+			files.push(name)
+		}
+	}
+
+	return files
 }

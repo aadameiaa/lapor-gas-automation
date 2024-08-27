@@ -74,6 +74,7 @@ export type Order = {
 	}
 	product: {
 		id: string
+		name: string
 		quantity: number
 	}
 }

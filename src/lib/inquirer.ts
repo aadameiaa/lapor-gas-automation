@@ -1,13 +1,14 @@
-import { input, password, select, Separator } from '@inquirer/prompts'
+import { input, password, search, select, Separator } from '@inquirer/prompts'
 import chalk from 'chalk'
 import { mkdirSync, readFileSync, unlinkSync, writeFileSync } from 'fs'
 import { StatusCodes } from 'http-status-codes'
 import { createSpinner } from 'nanospinner'
 import { Page } from 'puppeteer'
 
+import path from 'path'
 import { CustomError } from '../models/custome-error'
 import { AddOrderArgs } from './args'
-import { MY_PERTAMINA_DELAY } from './constants'
+import { CUSTOMER_TYPES, MY_PERTAMINA_DELAY } from './constants'
 import {
 	logAuth,
 	logCustomer,
@@ -24,7 +25,7 @@ import {
 	verifyCustomer,
 } from './my-pertamina'
 import { Auth, Customer, Order, TaskType } from './types'
-import { delay } from './utils'
+import { delay, getFiles, randomIntFromInterval } from './utils'
 
 export async function askForTask(): Promise<TaskType> {
 	return await select<TaskType>({
@@ -99,36 +100,21 @@ export async function askForPin(): Promise<string> {
 	})
 }
 
-export async function askForNationalityIdsPath(): Promise<string> {
-	return await input({
-		message:
-			'Enter the relative file path containing customer nationality IDs (must be a .json file):',
-		required: true,
-		validate: (value) => {
-			const relativeJsonPathRegex =
-				/^(\.\/|(\.\.\/)*)([a-zA-Z0-9_\-\/]+\/?)*[a-zA-Z0-9_\-]+\.json$/
+export async function askForFilePath(message: string): Promise<string> {
+	return await search({
+		message,
+		source: async (input) => {
+			if (!input) return []
 
-			return (
-				relativeJsonPathRegex.test(value) ||
-				'Please enter a valid relative file path with a .json extension (e.g., ./folder/data.json or ../data.json).'
-			)
-		},
-	})
-}
+			const files = getFiles('./public')
 
-export async function askForAddOrdersArgsPath(): Promise<string> {
-	return await input({
-		message:
-			'Enter the relative file path containing orders (must be a .json file):',
-		required: true,
-		validate: (value) => {
-			const relativeJsonPathRegex =
-				/^(\.\/|(\.\.\/)*)([a-zA-Z0-9_\-\/]+\/?)*[a-zA-Z0-9_\-]+\.json$/
-
-			return (
-				relativeJsonPathRegex.test(value) ||
-				'Please enter a valid relative file path with a .json extension (e.g., ./folder/data.json or ../data.json).'
-			)
+			return files
+				.filter((file) => path.extname(file) === '.json')
+				.filter((file) => file.includes(input))
+				.map((file) => ({
+					name: file,
+					value: file,
+				}))
 		},
 	})
 }
@@ -232,12 +218,33 @@ async function getProductTask(page: Page) {
 	return true
 }
 
+function isValidNationalityIds(data: any): data is string[] {
+	if (!Array.isArray(data)) {
+		throw false
+	}
+
+	return data.every((item) => typeof item === 'string')
+}
+
 async function verifyCustomersTask(page: Page) {
-	const nationalityIdsPath = await askForNationalityIdsPath()
+	const nationalityIdsPath = await askForFilePath(
+		'Please choose a file that contains the customer nationality IDs data',
+	)
 	const nationalityIdsFile = readFileSync(nationalityIdsPath, {
 		encoding: 'utf-8',
 	})
-	const nationalityIds = JSON.parse(nationalityIdsFile) as string[]
+	const nationalityIds = JSON.parse(nationalityIdsFile)
+
+	if (!isValidNationalityIds(nationalityIds)) {
+		console.log(
+			chalk.red.bold(
+				'  Invalid data: Expected an array of strings representing nationality IDs.' +
+					'\n',
+			),
+		)
+
+		return true
+	}
 
 	let customers: Customer[] = []
 	for (let index = 0; index < nationalityIds.length; index++) {
@@ -280,15 +287,67 @@ async function verifyCustomersTask(page: Page) {
 		},
 	)
 
+	const orders: AddOrderArgs[] = customers
+		.filter((customer) => customer.quota > 3)
+		.map((customer) => ({
+			customer,
+			quantity: randomIntFromInterval(1, customer.quota > 7 ? 7 : 3),
+			selectedCustomerType: customer.types[0],
+		}))
+
+	writeFileSync('public/data/orders.json', JSON.stringify(orders, null, 2), {
+		encoding: 'utf-8',
+	})
+
 	return true
 }
 
+function isValidOrderArgs(data: any): data is AddOrderArgs[] {
+	if (!Array.isArray(data)) {
+		return false
+	}
+
+	return data.every((item) => {
+		if (typeof item !== 'object' && item === null) {
+			return false
+		}
+
+		const { customer, quantity, selectedCustomerType } = item
+
+		return (
+			typeof customer === 'object' &&
+			customer !== null &&
+			typeof customer.nationalityId === 'string' &&
+			typeof customer.name === 'string' &&
+			typeof customer.quota === 'number' &&
+			Array.isArray(customer.types) &&
+			customer.types.every((type: any) => CUSTOMER_TYPES.includes(type)) &&
+			typeof quantity === 'number' &&
+			quantity > 0 &&
+			(!selectedCustomerType || CUSTOMER_TYPES.includes(selectedCustomerType))
+		)
+	})
+}
+
 async function addOrdersTask(page: Page) {
-	const addOrdersArgsPath = await askForAddOrdersArgsPath()
+	const addOrdersArgsPath = await askForFilePath(
+		'Please choose a file that contains the orders data',
+	)
 	const addOrdersArgsFile = readFileSync(addOrdersArgsPath, {
 		encoding: 'utf-8',
 	})
-	const addOrdersArgs = JSON.parse(addOrdersArgsFile) as AddOrderArgs[]
+	const addOrdersArgs = JSON.parse(addOrdersArgsFile)
+
+	if (!isValidOrderArgs(addOrdersArgs)) {
+		console.log(
+			chalk.red.bold(
+				'  Invalid data: Each order argument must have the following structure:\n' +
+					'  { customer: { nationalityId: string, name: string, quota: number, types: ("Rumah Tangga" | "Usaha Mikro" | "Pengecer")[] }, quantity: positive number, selectedCustomerType?: "Rumah Tangga" | "Usaha Mikro" | "Pengecer" }',
+			),
+		)
+
+		return true
+	}
 
 	let orders: Order[] = []
 	for (let index = 0; index < addOrdersArgs.length; index++) {
