@@ -1,4 +1,4 @@
-export const DEFAULT_PUPPETEER_TIMEOUT = 2 * 60 * 1000
+export const DEFAULT_TIMEOUT = 3 * 60 * 1000
 
 export const LOGIN_URL =
 	'https://subsiditepatlpg.mypertamina.id/merchant/auth/login'

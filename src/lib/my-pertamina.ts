@@ -1,7 +1,7 @@
 import { StatusCodes } from 'http-status-codes'
-import { GoToOptions, Page } from 'puppeteer'
+import { BrowserContext, Page } from 'playwright'
 
-import { CustomError } from '../models/custome-error'
+import { CustomError } from '../models/custom-error'
 import { AddOrderArgs, LoginArgs } from './args'
 import {
 	LOGIN_ENDPOINT,
@@ -19,24 +19,24 @@ import { Auth, Customer, CustomerType, Order, Product, Profile } from './types'
 
 async function navigateToLoginPage(
 	page: Page,
-	{ waitUntil, ...options }: GoToOptions = { waitUntil: 'networkidle0' },
+	options?: Parameters<typeof page.goto>[1],
 ) {
-	await page.goto(LOGIN_URL, { waitUntil: waitUntil, ...options })
+	await page.goto(LOGIN_URL, options)
 }
 
-async function setupAuth(page: Page, auth: Auth) {
-	await navigateToLoginPage(page)
-	await page.setCookie(...auth.cookies)
+async function setupAuth(context: BrowserContext, page: Page, auth: Auth) {
+	await navigateToLoginPage(page, { waitUntil: 'networkidle' })
+	await context.addCookies(auth.cookies)
 	await page.evaluate(
-		async (key, value) => {
+		async ({ key, value }) => {
 			const { revertAuthDTO } = window as any
+
 			window.localStorage.setItem(
 				key,
 				JSON.stringify(await revertAuthDTO(value)),
 			)
 		},
-		USER_DATA_LOCAL_STORAGE_KEY,
-		auth,
+		{ key: USER_DATA_LOCAL_STORAGE_KEY, value: auth },
 	)
 }
 
@@ -58,6 +58,35 @@ function checkCookieExpiration(page: Page, url: string) {
 	}
 }
 
+async function fillLoginForm(page: Page, { phoneNumber, pin }: LoginArgs) {
+	await page.getByPlaceholder('Email atau No. Handphone').fill(phoneNumber)
+	await page.getByPlaceholder('PIN (6-digit)').fill(pin)
+}
+
+async function submitLoginForm(
+	context: BrowserContext,
+	page: Page,
+): Promise<Auth> {
+	await page.getByText('Masuk').click()
+
+	const response = await page.waitForResponse(
+		(response) =>
+			response.url() === LOGIN_ENDPOINT &&
+			response.request().method() === 'POST',
+	)
+
+	if (!response.ok()) {
+		const status = response.status()
+		throw new CustomError(handleLoginError(status), status)
+	}
+
+	const body = await response.json()
+	const cookies = await context.cookies(LOGIN_URL)
+	const auth = authDTO(body, cookies)
+
+	return auth
+}
+
 function handleLoginError(statusCode?: StatusCodes): string {
 	switch (statusCode) {
 		case StatusCodes.UNAUTHORIZED:
@@ -68,42 +97,15 @@ function handleLoginError(statusCode?: StatusCodes): string {
 	}
 }
 
-async function fillLoginForm(page: Page, phoneNumber: string, pin: string) {
-	await page
-		.locator('input[placeholder="Email atau No. Handphone"]')
-		.fill(phoneNumber)
-	await page.locator('input[placeholder="PIN (6-digit)"]').fill(pin)
-}
-
-async function submitLoginForm(page: Page): Promise<Auth> {
-	await page.locator('button[type="submit"]').click()
-
-	const response = await page.waitForResponse(
-		(response) =>
-			response.url() === LOGIN_ENDPOINT &&
-			response.request().method() !== 'OPTIONS',
-	)
-
-	if (!response.ok()) {
-		const status = response.status()
-		throw new CustomError(handleLoginError(status), status)
-	}
-
-	const body = await response.json()
-	const cookies = await page.cookies()
-	const auth = authDTO(body, cookies)
-
-	return auth
-}
-
 export async function login(
+	context: BrowserContext,
 	page: Page,
 	{ phoneNumber, pin }: LoginArgs,
-): Promise<Auth | CustomError> {
+) {
 	try {
-		await navigateToLoginPage(page)
-		await fillLoginForm(page, phoneNumber, pin)
-		const auth = await submitLoginForm(page)
+		await navigateToLoginPage(page, { waitUntil: 'networkidle' })
+		await fillLoginForm(page, { phoneNumber, pin })
+		const auth = await submitLoginForm(context, page)
 
 		return auth
 	} catch (error) {
@@ -113,25 +115,23 @@ export async function login(
 
 async function navigateToVerifyCustomerPage(
 	page: Page,
-	{ waitUntil, ...options }: GoToOptions = { waitUntil: 'networkidle0' },
+	options?: Parameters<typeof page.goto>[1],
 ) {
-	await page.goto(VERIFY_CUSTOMER_URL, {
-		waitUntil: waitUntil,
-		...options,
-	})
+	await page.goto(VERIFY_CUSTOMER_URL, options)
 }
 
 async function performLogout(page: Page) {
-	await page.locator('div[data-testid="btnLogout"]').click()
-	await page.locator('button[data-testid="btnLogout"][type="button"]').click()
+	await page.getByTestId('btnLogout').click()
+	await page.getByRole('dialog').getByTestId('btnLogout').click()
 }
 
 export async function logout(
+	context: BrowserContext,
 	page: Page,
 	auth: Auth,
 ): Promise<null | CustomError> {
 	try {
-		await setupAuth(page, auth)
+		await setupAuth(context, page, auth)
 		await navigateToVerifyCustomerPage(page)
 
 		checkCookieExpiration(page, VERIFY_CUSTOMER_URL)
@@ -157,7 +157,7 @@ async function fetchProfile(page: Page): Promise<Profile> {
 	const response = await page.waitForResponse(
 		(response) =>
 			response.url() === PROFILE_ENDPOINT &&
-			response.request().method() !== 'OPTIONS',
+			response.request().method() === 'GET',
 	)
 
 	if (!response.ok()) {
@@ -172,12 +172,13 @@ async function fetchProfile(page: Page): Promise<Profile> {
 }
 
 export async function getProfile(
+	context: BrowserContext,
 	page: Page,
 	auth: Auth,
 ): Promise<Profile | CustomError> {
 	try {
-		await setupAuth(page, auth)
-		await navigateToVerifyCustomerPage(page, { waitUntil: 'load' })
+		await setupAuth(context, page, auth)
+		await navigateToVerifyCustomerPage(page)
 
 		checkCookieExpiration(page, VERIFY_CUSTOMER_URL)
 
@@ -200,16 +201,16 @@ function handleGetProductError(statusCode?: StatusCodes): string {
 
 async function navigateToManageProductPage(
 	page: Page,
-	{ waitUntil, ...options }: GoToOptions = { waitUntil: 'networkidle0' },
+	options?: Parameters<typeof page.goto>[1],
 ) {
-	await page.goto(MANAGE_PRODUCT_URL, { waitUntil: waitUntil, ...options })
+	await page.goto(MANAGE_PRODUCT_URL, options)
 }
 
 async function fetchProduct(page: Page): Promise<Product> {
 	const response = await page.waitForResponse(
 		(response) =>
 			response.url() === PRODUCTS_ENDPOINT &&
-			response.request().method() !== 'OPTIONS',
+			response.request().method() === 'GET',
 	)
 
 	if (!response.ok()) {
@@ -224,12 +225,13 @@ async function fetchProduct(page: Page): Promise<Product> {
 }
 
 export async function getProduct(
+	context: BrowserContext,
 	page: Page,
 	auth: Auth,
 ): Promise<Product | CustomError> {
 	try {
-		await setupAuth(page, auth)
-		await navigateToManageProductPage(page, { waitUntil: 'load' })
+		await setupAuth(context, page, auth)
+		await navigateToManageProductPage(page)
 
 		checkCookieExpiration(page, MANAGE_PRODUCT_URL)
 
@@ -258,9 +260,7 @@ function handleVerifyCustomerError(statusCode?: StatusCodes): string {
 
 async function fillVerifyNationalityIdForm(page: Page, nationalityId: string) {
 	await page
-		.locator(
-			'input[type="search"][placeholder="Masukkan 16 digit NIK KTP Pelanggan"]',
-		)
+		.getByPlaceholder('Masukkan 16 digit NIK KTP Pelanggan')
 		.fill(nationalityId)
 }
 
@@ -269,7 +269,7 @@ async function submitVerifyNationalityIdForm(
 	nationalityId: string,
 	{ isNeedResponse }: { isNeedResponse?: boolean } = { isNeedResponse: true },
 ): Promise<Customer | null> {
-	await page.locator('button[data-testid="btnCheckNik"][type="submit"]').click()
+	await page.getByTestId('btnCheckNik').click()
 
 	if (!isNeedResponse) {
 		return null
@@ -279,7 +279,7 @@ async function submitVerifyNationalityIdForm(
 		(response) =>
 			response.url() ===
 				`${VERIFY_CUSTOMER_ENDPOINT}?nationalityId=${nationalityId}` &&
-			response.request().method() !== 'OPTIONS',
+			response.request().method() === 'GET',
 	)
 
 	if (!response.ok()) {
@@ -294,13 +294,14 @@ async function submitVerifyNationalityIdForm(
 }
 
 export async function verifyCustomer(
+	context: BrowserContext,
 	page: Page,
 	auth: Auth,
 	nationalityId: string,
 ): Promise<Customer | CustomError> {
 	try {
-		await setupAuth(page, auth)
-		await navigateToVerifyCustomerPage(page)
+		await setupAuth(context, page, auth)
+		await navigateToVerifyCustomerPage(page, { waitUntil: 'networkidle' })
 
 		checkCookieExpiration(page, VERIFY_CUSTOMER_URL)
 
@@ -335,14 +336,9 @@ async function handleCustomerTypeSelection(
 	selectedCustomerType?: CustomerType,
 ) {
 	if (customerTypes.length === 2) {
-		await page
-			.locator(`input[type="radio"][value="${selectedCustomerType}"]`)
-			.click()
-		await page.locator('button[data-testid="btnContinueTrx"]').click()
+		await page.getByLabel(selectedCustomerType as string).click()
+		await page.getByTestId('btnContinueTrx').click()
 	}
-
-	await page.waitForNavigation({ waitUntil: 'networkidle0' })
-	await page.waitForNetworkIdle()
 }
 
 function isValidOrderQuantity(quantity: number, quota: number): boolean {
@@ -360,16 +356,12 @@ async function adjustOrderQuantity(
 	}
 
 	if (quantity > 1) {
-		await page
-			.locator('button[data-testid="actionIcon2"]')
-			.click({ count: quantity - 1 })
+		await page.getByTestId('actionIcon2').click({ clickCount: quantity - 1 })
 	}
 }
 
 async function confirmOrder(page: Page) {
-	await page.locator('button[data-testid="btnCheckOrder"]').click()
-	await page.waitForNavigation({ waitUntil: 'networkidle0' })
-	await page.waitForNetworkIdle()
+	await page.getByTestId('btnCheckOrder').click()
 }
 
 async function submitAddOrderForm(
@@ -377,12 +369,12 @@ async function submitAddOrderForm(
 	customer: Customer,
 	quantity: number,
 ): Promise<Order> {
-	await page.locator('button[data-testid="btnPay"]').click()
+	await page.getByTestId('btnPay').click()
 
 	const response = await page.waitForResponse(
 		(response) =>
 			response.url() === TRANSACTIONS_ENDPOINT &&
-			response.request().method() !== 'OPTIONS',
+			response.request().method() === 'POST',
 	)
 
 	if (!response.ok()) {
@@ -397,13 +389,14 @@ async function submitAddOrderForm(
 }
 
 export async function addOrder(
+	context: BrowserContext,
 	page: Page,
 	auth: Auth,
 	{ customer, quantity, selectedCustomerType }: AddOrderArgs,
 ): Promise<Order | CustomError> {
 	try {
-		await setupAuth(page, auth)
-		await navigateToVerifyCustomerPage(page)
+		await setupAuth(context, page, auth)
+		await navigateToVerifyCustomerPage(page, { waitUntil: 'networkidle' })
 
 		checkCookieExpiration(page, VERIFY_CUSTOMER_URL)
 

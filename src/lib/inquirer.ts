@@ -3,10 +3,10 @@ import chalk from 'chalk'
 import { mkdirSync, readFileSync, unlinkSync, writeFileSync } from 'fs'
 import { StatusCodes } from 'http-status-codes'
 import { createSpinner } from 'nanospinner'
-import { Page } from 'puppeteer'
 
 import path from 'path'
-import { CustomError } from '../models/custome-error'
+import { BrowserContext, Page } from 'playwright'
+import { CustomError } from '../models/custom-error'
 import { AddOrderArgs } from './args'
 import { CUSTOMER_TYPES, MY_PERTAMINA_DELAY } from './constants'
 import {
@@ -119,12 +119,12 @@ export async function askForFilePath(message: string): Promise<string> {
 	})
 }
 
-async function loginTask(page: Page) {
+async function loginTask(context: BrowserContext, page: Page) {
 	const phoneNumber = await askForPhoneNumber()
 	const pin = await askForPin()
 
 	const spinner = createSpinner('Processing login task').start()
-	const loginData = await login(page, { phoneNumber, pin })
+	const loginData = await login(context, page, { phoneNumber, pin })
 	if (loginData instanceof CustomError) {
 		spinner.error({
 			text: chalk.red.bold(loginData.message + '\n'),
@@ -146,11 +146,11 @@ async function loginTask(page: Page) {
 	return true
 }
 
-async function logoutTask(page: Page) {
+async function logoutTask(context: BrowserContext, page: Page) {
 	const authFile = readFileSync('public/data/auth.json', { encoding: 'utf-8' })
 	const auth = JSON.parse(authFile) as Auth
 	const spinner = createSpinner('Processing logout task').start()
-	const logoutData = await logout(page, auth)
+	const logoutData = await logout(context, page, auth)
 	if (logoutData instanceof CustomError) {
 		spinner.error({
 			text: chalk.red.bold(logoutData.message + '\n'),
@@ -174,11 +174,11 @@ async function logoutTask(page: Page) {
 	return true
 }
 
-async function getProfileTask(page: Page) {
+async function getProfileTask(context: BrowserContext, page: Page) {
 	const authFile = readFileSync('public/data/auth.json', { encoding: 'utf-8' })
 	const auth = JSON.parse(authFile) as Auth
 	const spinner = createSpinner('Processing view profile task').start()
-	const profileData = await getProfile(page, auth)
+	const profileData = await getProfile(context, page, auth)
 	if (profileData instanceof CustomError) {
 		spinner.error({
 			text: chalk.red.bold(profileData.message + '\n'),
@@ -196,11 +196,11 @@ async function getProfileTask(page: Page) {
 	return true
 }
 
-async function getProductTask(page: Page) {
+async function getProductTask(context: BrowserContext, page: Page) {
 	const authFile = readFileSync('public/data/auth.json', { encoding: 'utf-8' })
 	const auth = JSON.parse(authFile) as Auth
 	const spinner = createSpinner('Processing check product stock task').start()
-	const productData = await getProduct(page, auth)
+	const productData = await getProduct(context, page, auth)
 	if (productData instanceof CustomError) {
 		spinner.error({
 			text: chalk.red.bold(productData.message + '\n'),
@@ -226,7 +226,7 @@ function isValidNationalityIds(data: any): data is string[] {
 	return data.every((item) => typeof item === 'string')
 }
 
-async function verifyCustomersTask(page: Page) {
+async function verifyCustomersTask(context: BrowserContext, page: Page) {
 	const nationalityIdsPath = await askForFilePath(
 		'Please choose a file that contains the customer nationality IDs data',
 	)
@@ -255,7 +255,12 @@ async function verifyCustomersTask(page: Page) {
 		})
 		const auth = JSON.parse(authFile) as Auth
 		const spinner = createSpinner('Processing verify customer task').start()
-		const customerData = await verifyCustomer(page, auth, nationalityId)
+		const customerData = await verifyCustomer(
+			context,
+			page,
+			auth,
+			nationalityId,
+		)
 		if (customerData instanceof CustomError) {
 			spinner.error({
 				text: chalk.red.bold(customerData.message + '\n'),
@@ -329,7 +334,7 @@ function isValidOrderArgs(data: any): data is AddOrderArgs[] {
 	})
 }
 
-async function addOrdersTask(page: Page) {
+async function addOrdersTask(context: BrowserContext, page: Page) {
 	const addOrdersArgsPath = await askForFilePath(
 		'Please choose a file that contains the orders data',
 	)
@@ -358,7 +363,7 @@ async function addOrdersTask(page: Page) {
 		})
 		const auth = JSON.parse(authFile) as Auth
 		const spinner = createSpinner('Processing add order task').start()
-		const orderData = await addOrder(page, auth, addOrderArg)
+		const orderData = await addOrder(context, page, auth, addOrderArg)
 		if (orderData instanceof CustomError) {
 			spinner.error({
 				text: chalk.red.bold(orderData.message + '\n'),
@@ -400,22 +405,23 @@ async function exitTask() {
 }
 
 export async function processTask(
+	context: BrowserContext,
 	page: Page,
 	task: TaskType,
 ): Promise<boolean> {
 	switch (task) {
 		case 'LOGIN':
-			return await loginTask(page)
+			return await loginTask(context, page)
 		case 'LOGOUT':
-			return await logoutTask(page)
+			return await logoutTask(context, page)
 		case 'GET_PROFILE':
-			return await getProfileTask(page)
+			return await getProfileTask(context, page)
 		case 'GET_PRODUCT':
-			return await getProductTask(page)
+			return await getProductTask(context, page)
 		case 'VERIFY_CUSTOMERS':
-			return await verifyCustomersTask(page)
+			return await verifyCustomersTask(context, page)
 		case 'ADD_ORDERS':
-			return await addOrdersTask(page)
+			return await addOrdersTask(context, page)
 		case 'EXIT':
 			return await exitTask()
 		default:

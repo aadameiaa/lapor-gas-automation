@@ -3,12 +3,9 @@
 import chalk from 'chalk'
 
 import { askForTask, processTask } from './lib/inquirer'
-import { createBrowser, setupPage } from './lib/puppeteer'
+import { initializeBrowser } from './lib/playwright'
 
 const main = async () => {
-	const browser = await createBrowser()
-	const page = await setupPage(browser)
-
 	console.log(chalk.green.bold('Welcome to LPG Gas Automation CLI! 🚀'))
 	console.log(
 		chalk.blue(
@@ -17,12 +14,15 @@ const main = async () => {
 	)
 	console.log(chalk.cyan('Please select an option below to get started:\n'))
 
+	const { browser, context, page } = await initializeBrowser()
+
 	let isRunning = true
 	while (isRunning) {
 		const task = await askForTask()
-		isRunning = await processTask(page, task)
+		isRunning = await processTask(context, page, task)
 	}
 
+	await context.close()
 	await browser.close()
 }
 

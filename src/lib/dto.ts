@@ -1,4 +1,4 @@
-import { Cookie } from 'puppeteer'
+import { Cookie } from 'playwright'
 
 import { PRODUCT_ID, PRODUCT_NAME } from './constants'
 import {

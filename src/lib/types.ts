@@ -1,4 +1,4 @@
-import { Cookie } from 'puppeteer'
+import { Cookie } from 'playwright'
 
 import { CUSTOMER_TYPES, TASK_TYPES } from './constants'
 
