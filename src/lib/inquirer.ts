@@ -1,10 +1,9 @@
-import { input, password, search, select, Separator } from '@inquirer/prompts'
+import { input, password } from '@inquirer/prompts'
 import chalk from 'chalk'
 import { mkdirSync, readFileSync, unlinkSync, writeFileSync } from 'fs'
 import { StatusCodes } from 'http-status-codes'
 import { createSpinner } from 'nanospinner'
 
-import path from 'path'
 import { BrowserContext, Page } from 'playwright'
 import { CustomError } from '../models/custom-error'
 import { AddOrderArgs } from './args'
@@ -24,52 +23,8 @@ import {
 	logout,
 	verifyCustomer,
 } from './my-pertamina'
-import { Auth, Customer, Order, TaskType } from './types'
-import { delay, getFiles } from './utils'
-
-export async function askForTask(): Promise<TaskType> {
-	return await select<TaskType>({
-		message: 'What task would you like to perform?',
-		choices: [
-			{
-				name: 'Login',
-				value: 'LOGIN',
-				description: 'Log into the system',
-			},
-			{
-				name: 'Logout',
-				value: 'LOGOUT',
-				description: 'Log out of the system',
-			},
-			{
-				name: 'View Profile',
-				value: 'GET_PROFILE',
-				description: 'View the profile of the logged-in user',
-			},
-			{
-				name: 'Check Product Stock',
-				value: 'GET_PRODUCT',
-				description: 'View the current stock of available products',
-			},
-			{
-				name: 'Verify Customers',
-				value: 'VERIFY_CUSTOMERS',
-				description: 'Verify multiple customers by nationality IDs',
-			},
-			{
-				name: 'Create Orders',
-				value: 'ADD_ORDERS',
-				description: 'Create new orders for multiple customers',
-			},
-			{
-				name: 'Exit',
-				value: 'EXIT',
-				description: 'Stop the program',
-			},
-			new Separator(),
-		],
-	})
-}
+import { Auth, Customer, Order } from './types'
+import { delay } from './utils'
 
 export async function askForPhoneNumber(): Promise<string> {
 	return await input({
@@ -100,26 +55,7 @@ export async function askForPin(): Promise<string> {
 	})
 }
 
-export async function askForFilePath(message: string): Promise<string> {
-	return await search({
-		message,
-		source: async (input) => {
-			if (!input) return []
-
-			const files = getFiles('./public')
-
-			return files
-				.filter((file) => path.extname(file) === '.json')
-				.filter((file) => file.includes(input))
-				.map((file) => ({
-					name: file,
-					value: file,
-				}))
-		},
-	})
-}
-
-async function loginTask(context: BrowserContext, page: Page) {
+export async function performLogin(context: BrowserContext, page: Page) {
 	const phoneNumber = await askForPhoneNumber()
 	const pin = await askForPin()
 
@@ -130,7 +66,7 @@ async function loginTask(context: BrowserContext, page: Page) {
 			text: chalk.red.bold(loginData.message + '\n'),
 		})
 
-		return true
+		return
 	}
 
 	spinner.success({
@@ -142,11 +78,9 @@ async function loginTask(context: BrowserContext, page: Page) {
 	writeFileSync('public/data/auth.json', JSON.stringify(loginData, null, 2), {
 		encoding: 'utf-8',
 	})
-
-	return true
 }
 
-async function logoutTask(context: BrowserContext, page: Page) {
+export async function performLogout(context: BrowserContext, page: Page) {
 	const authFile = readFileSync('public/data/auth.json', { encoding: 'utf-8' })
 	const auth = JSON.parse(authFile) as Auth
 	const spinner = createSpinner('Processing logout task').start()
@@ -156,7 +90,7 @@ async function logoutTask(context: BrowserContext, page: Page) {
 			text: chalk.red.bold(logoutData.message + '\n'),
 		})
 
-		return true
+		return
 	}
 
 	unlinkSync('public/data/auth.json')
@@ -170,11 +104,9 @@ async function logoutTask(context: BrowserContext, page: Page) {
 		),
 	)
 	console.log(chalk.cyan('  Take care and see you next time! ✨\n'))
-
-	return true
 }
 
-async function getProfileTask(context: BrowserContext, page: Page) {
+export async function performGetProfile(context: BrowserContext, page: Page) {
 	const authFile = readFileSync('public/data/auth.json', { encoding: 'utf-8' })
 	const auth = JSON.parse(authFile) as Auth
 	const spinner = createSpinner('Processing view profile task').start()
@@ -184,7 +116,7 @@ async function getProfileTask(context: BrowserContext, page: Page) {
 			text: chalk.red.bold(profileData.message + '\n'),
 		})
 
-		return true
+		return
 	}
 
 	spinner.success({
@@ -192,11 +124,9 @@ async function getProfileTask(context: BrowserContext, page: Page) {
 	})
 
 	logProfile(profileData)
-
-	return true
 }
 
-async function getProductTask(context: BrowserContext, page: Page) {
+export async function performGetStock(context: BrowserContext, page: Page) {
 	const authFile = readFileSync('public/data/auth.json', { encoding: 'utf-8' })
 	const auth = JSON.parse(authFile) as Auth
 	const spinner = createSpinner('Processing check product stock task').start()
@@ -206,7 +136,7 @@ async function getProductTask(context: BrowserContext, page: Page) {
 			text: chalk.red.bold(productData.message + '\n'),
 		})
 
-		return true
+		return
 	}
 
 	spinner.success({
@@ -214,8 +144,6 @@ async function getProductTask(context: BrowserContext, page: Page) {
 	})
 
 	logProduct(productData)
-
-	return true
 }
 
 function isValidNationalityIds(data: any): data is string[] {
@@ -226,11 +154,12 @@ function isValidNationalityIds(data: any): data is string[] {
 	return data.every((item) => typeof item === 'string')
 }
 
-async function verifyCustomersTask(context: BrowserContext, page: Page) {
-	const nationalityIdsPath = await askForFilePath(
-		'Please choose a file that contains the customer nationality IDs data',
-	)
-	const nationalityIdsFile = readFileSync(nationalityIdsPath, {
+export async function performVerifyCustomers(
+	context: BrowserContext,
+	page: Page,
+	filePath: string,
+) {
+	const nationalityIdsFile = readFileSync(filePath, {
 		encoding: 'utf-8',
 	})
 	const nationalityIds = JSON.parse(nationalityIdsFile)
@@ -243,7 +172,7 @@ async function verifyCustomersTask(context: BrowserContext, page: Page) {
 			),
 		)
 
-		return true
+		return
 	}
 
 	let customers: Customer[] = []
@@ -291,8 +220,6 @@ async function verifyCustomersTask(context: BrowserContext, page: Page) {
 			encoding: 'utf-8',
 		},
 	)
-
-	return true
 }
 
 function isValidOrderArgs(data: any): data is AddOrderArgs[] {
@@ -322,11 +249,12 @@ function isValidOrderArgs(data: any): data is AddOrderArgs[] {
 	})
 }
 
-async function addOrdersTask(context: BrowserContext, page: Page) {
-	const addOrdersArgsPath = await askForFilePath(
-		'Please choose a file that contains the orders data',
-	)
-	const addOrdersArgsFile = readFileSync(addOrdersArgsPath, {
+export async function performAddOrders(
+	context: BrowserContext,
+	page: Page,
+	filePath: string,
+) {
+	const addOrdersArgsFile = readFileSync(filePath, {
 		encoding: 'utf-8',
 	})
 	const addOrdersArgs = JSON.parse(addOrdersArgsFile)
@@ -339,7 +267,7 @@ async function addOrdersTask(context: BrowserContext, page: Page) {
 			),
 		)
 
-		return true
+		return
 	}
 
 	let orders: Order[] = []
@@ -378,41 +306,4 @@ async function addOrdersTask(context: BrowserContext, page: Page) {
 	writeFileSync('public/data/orders.json', JSON.stringify(orders, null, 2), {
 		encoding: 'utf-8',
 	})
-
-	return true
-}
-
-async function exitTask() {
-	console.log(
-		chalk.green.bold('  Thank you for using LPG Gas Automation CLI! 🙏'),
-	)
-	console.log(chalk.blue('  We hope to see you again. Have a great day! 🌟'))
-	console.log(chalk.cyan('  Goodbye! 👋\n'))
-
-	return false
-}
-
-export async function processTask(
-	context: BrowserContext,
-	page: Page,
-	task: TaskType,
-): Promise<boolean> {
-	switch (task) {
-		case 'LOGIN':
-			return await loginTask(context, page)
-		case 'LOGOUT':
-			return await logoutTask(context, page)
-		case 'GET_PROFILE':
-			return await getProfileTask(context, page)
-		case 'GET_PRODUCT':
-			return await getProductTask(context, page)
-		case 'VERIFY_CUSTOMERS':
-			return await verifyCustomersTask(context, page)
-		case 'ADD_ORDERS':
-			return await addOrdersTask(context, page)
-		case 'EXIT':
-			return await exitTask()
-		default:
-			return false
-	}
 }

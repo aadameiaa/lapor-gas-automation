@@ -1,8 +1,7 @@
 import { Cookie } from 'playwright'
 
-import { CUSTOMER_TYPES, TASK_TYPES } from './constants'
+import { CUSTOMER_TYPES } from './constants'
 
-export type TaskType = (typeof TASK_TYPES)[number]
 export type CustomerType = (typeof CUSTOMER_TYPES)[number]
 
 type AuthSettings = {

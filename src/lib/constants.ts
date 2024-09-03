@@ -23,15 +23,6 @@ export const PRODUCT_NAME = 'LPG 3 Kg'
 export const USER_DATA_LOCAL_STORAGE_KEY = 'maplite_user_data'
 export const MY_PERTAMINA_DELAY = 60 * 1000
 
-export const TASK_TYPES = [
-	'LOGIN',
-	'LOGOUT',
-	'GET_PROFILE',
-	'GET_PRODUCT',
-	'VERIFY_CUSTOMERS',
-	'ADD_ORDERS',
-	'EXIT',
-] as const
 export const CUSTOMER_TYPES = [
 	'Rumah Tangga',
 	'Usaha Mikro',
