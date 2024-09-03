@@ -267,13 +267,8 @@ async function fillVerifyNationalityIdForm(page: Page, nationalityId: string) {
 async function submitVerifyNationalityIdForm(
 	page: Page,
 	nationalityId: string,
-	{ isNeedResponse }: { isNeedResponse?: boolean } = { isNeedResponse: true },
 ): Promise<Customer | null> {
 	await page.getByTestId('btnCheckNik').click()
-
-	if (!isNeedResponse) {
-		return null
-	}
 
 	const response = await page.waitForResponse(
 		(response) =>
@@ -341,6 +336,44 @@ async function handleCustomerTypeSelection(
 	}
 }
 
+async function preparingCustomer(
+	page: Page,
+	customer: Customer,
+	selectedCustomerType?: CustomerType,
+) {
+	const productResponsePromise = page.waitForResponse(
+		(response) =>
+			response.url() === PRODUCTS_ENDPOINT &&
+			response.request().method() === 'GET' &&
+			response.status() === StatusCodes.OK,
+	)
+
+	const profileResponsePromise = page.waitForResponse(
+		(response) =>
+			response.url() === PROFILE_ENDPOINT &&
+			response.request().method() === 'GET' &&
+			response.status() === StatusCodes.OK,
+	)
+
+	await fillVerifyNationalityIdForm(page, customer.nationalityId)
+	await submitVerifyNationalityIdForm(page, customer.nationalityId)
+
+	await handleCustomerTypeSelection(page, customer.types, selectedCustomerType)
+
+	const productResponse = await productResponsePromise
+	await profileResponsePromise
+
+	const productBody = await productResponse.json()
+	const product = productDTO(productBody)
+
+	if (product.stock.available === 0) {
+		throw new CustomError(
+			handleAddOrderError(StatusCodes.BAD_REQUEST),
+			StatusCodes.BAD_REQUEST,
+		)
+	}
+}
+
 function isValidOrderQuantity(quantity: number, quota: number): boolean {
 	return quantity >= 1 && quantity <= 20 && quantity <= quota
 }
@@ -400,17 +433,7 @@ export async function addOrder(
 
 		checkCookieExpiration(page, VERIFY_CUSTOMER_URL)
 
-		await fillVerifyNationalityIdForm(page, customer.nationalityId)
-		await submitVerifyNationalityIdForm(page, customer.nationalityId, {
-			isNeedResponse: false,
-		})
-
-		await handleCustomerTypeSelection(
-			page,
-			customer.types,
-			selectedCustomerType,
-		)
-
+		await preparingCustomer(page, customer, selectedCustomerType)
 		await adjustOrderQuantity(page, quantity, customer.quota)
 		await confirmOrder(page)
 		const order = await submitAddOrderForm(page, customer, quantity)

@@ -25,7 +25,7 @@ import {
 	verifyCustomer,
 } from './my-pertamina'
 import { Auth, Customer, Order, TaskType } from './types'
-import { delay, getFiles, randomIntFromInterval } from './utils'
+import { delay, getFiles } from './utils'
 
 export async function askForTask(): Promise<TaskType> {
 	return await select<TaskType>({
@@ -291,18 +291,6 @@ async function verifyCustomersTask(context: BrowserContext, page: Page) {
 			encoding: 'utf-8',
 		},
 	)
-
-	const orders: AddOrderArgs[] = customers
-		.filter((customer) => customer.quota > 3)
-		.map((customer) => ({
-			customer,
-			quantity: randomIntFromInterval(1, customer.quota > 7 ? 7 : 3),
-			selectedCustomerType: customer.types[0],
-		}))
-
-	writeFileSync('public/data/orders.json', JSON.stringify(orders, null, 2), {
-		encoding: 'utf-8',
-	})
 
 	return true
 }
